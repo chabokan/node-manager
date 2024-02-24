@@ -1,0 +1,25 @@
+version: '3.5'
+services:
+  web:
+    build: .
+    ports:
+      - "8123:80"
+    volumes:
+      - .:/app
+#      - /home:/home
+#      - /home2:/home2
+#      - /storage:/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+#      - /backups:/backups
+    restart: "always"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    networks:
+      - node-manager
+networks:
+  node-manager:
+    driver: bridge
+
