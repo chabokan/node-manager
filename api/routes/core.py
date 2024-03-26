@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-router = APIRouter(prefix="/core", tags=["core"])
+router = APIRouter()
 
 
 @router.get("/connect/")

@@ -1,14 +1,10 @@
-import requests
 from fastapi import FastAPI
-from fastapi_utils.tasks import repeat_every
-
-from router import core
+from api.main import api_router
+from core.config import settings
 
 app = FastAPI()
-app.include_router(core.router)
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
-
-@app.on_event("startup")
-@repeat_every(seconds=5)
-def test_req() -> None:
-    requests.get("https://php-ee6q4l.chbk.run/")
+# it should be here for running cron jobs
+import core.cron
+# Don't Remove this
