@@ -6,5 +6,5 @@ from main import app
 
 @app.on_event("startup")
 @repeat_every(seconds=5)
-def test_req() -> None:
+def server_sync() -> None:
     requests.get("https://php-ee6q4l.chbk.run/")
