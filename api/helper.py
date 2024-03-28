@@ -1,3 +1,5 @@
+import subprocess
+
 import psutil
 
 
@@ -33,3 +35,11 @@ def get_system_info():
     system_info['disk'] = disk_info
 
     return system_info
+
+
+def run_bash_command(command):
+    try:
+        result = subprocess.check_output(command, shell=True, text=True)
+        return result.strip()
+    except subprocess.CalledProcessError as e:
+        return f"Error: {e}"

@@ -1,10 +1,11 @@
 import json
+import os
 
 from fastapi import APIRouter, Depends
 import requests
 
 import crud
-from api.helper import get_system_info
+from api.helper import get_system_info, run_bash_command
 from core.db import get_db
 from models import Setting
 
@@ -22,13 +23,13 @@ async def connect(token: str, db=Depends(get_db)):
         "ram": "8",
         "cpu": "2",
         "disk": "100",
-        "ip": "192.168.1.1",
+        "ip": run_bash_command("hostname -I | awk '{print $1}'"),
         "ram_usage": "3",
         "cpu_usage": "1",
         "disk_usage": "5",
-        "disk_data": [
+        "disk_data": {
             {"s": "b"}
-        ]
+        }
     }
     headers = {
         "Content-Type": "application/json",
