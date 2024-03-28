@@ -18,5 +18,9 @@ def get_all_settings(session: Session) -> list[Setting]:
     return session.query(Setting).all()
 
 
-def get_setting(session: Session, key) -> list[Setting]:
-    return session.query(Setting).filter(Setting.key == key).first()
+def get_setting(session: Session, key) -> Setting:
+    s = session.query(Setting).filter(Setting.key == key).first()
+    if s.count() > 0:
+        return s
+    else:
+        return None
