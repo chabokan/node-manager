@@ -1,6 +1,7 @@
 import subprocess
 
 import psutil
+import requests
 
 
 def get_system_info():
@@ -43,3 +44,12 @@ def run_bash_command(command):
         return result.strip()
     except subprocess.CalledProcessError as e:
         return f"Error: {e}"
+
+
+def get_server_ip():
+    try:
+        ip = requests.get("https://chabokan.net/ip/").json()['ip_address']
+    except:
+        ip = requests.get("https://shecan.ir/ip/").content.decode("utf-8")
+
+    return ip

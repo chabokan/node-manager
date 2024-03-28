@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 import requests
 
 import crud
-from api.helper import get_system_info, run_bash_command
+from api.helper import get_system_info, run_bash_command, get_server_ip
 from core.db import get_db
 from models import Setting
 
@@ -18,12 +18,13 @@ async def connect(token: str, db=Depends(get_db)):
         return {"success": False, "message": "node connected before!"}
 
     server_info = get_system_info()
+    ip = get_server_ip()
     data = {
         "token": token,
         "ram": "8",
         "cpu": "2",
         "disk": "100",
-        "ip": run_bash_command("hostname -I | awk '{print $1}'"),
+        "ip": ip,
         "ram_usage": "3",
         "cpu_usage": "1",
         "disk_usage": "5",
