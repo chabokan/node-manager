@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     DOMAIN: str = "localhost"
 
     PROJECT_NAME: str = "node-manager"
+    SQLALCHEMY_DATABASE_URL: str = "sqlite:///./sql_app.db"
 
 
 settings = Settings()  # type: ignore
