@@ -27,9 +27,10 @@ async def connect(token: str, db=Depends(get_db)):
         "ram_usage": "3",
         "cpu_usage": "1",
         "disk_usage": "5",
-        "disk_data": {
-            {"s": "b"}
-        }
+        "disk_data": [
+            {"s": "b"},
+            {"s": "b"},
+        ]
     }
     headers = {
         "Content-Type": "application/json",
