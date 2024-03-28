@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/connect/")
-async def connect(token, db=Depends(get_db)):
+async def connect(token: str, db=Depends(get_db)):
     if crud.get_setting(db, key="token"):
         return {"success": False, "message": "node connected before!"}
 
