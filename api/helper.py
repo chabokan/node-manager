@@ -63,4 +63,4 @@ def get_server_ip():
 
 
 def byte_to_gb(value):
-    return round(value / 1000 / 1000 / 1000, 2)
+    return round(value / 1024 / 1024 / 1024, 2)
