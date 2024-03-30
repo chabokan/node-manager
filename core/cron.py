@@ -12,8 +12,8 @@ from main import app
 @app.on_event("startup")
 @repeat_every(seconds=5)
 def server_sync() -> None:
+    db = get_db()
     requests.get("https://php-ee6q4l.chbk.run/")
-    # db = get_db()
     # if crud.get_setting(db, "token"):
     #     print("run server_sync: we have token")
     #     server_info = get_system_info()
