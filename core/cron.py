@@ -17,7 +17,7 @@ def server_sync() -> None:
         server_info = get_system_info()
         ip = get_server_ip()
         data = {
-            "token": crud.get_setting(db, "token"),
+            "token": crud.get_setting(db, "token")['value'],
             "ram": server_info['ram']['total'],
             "cpu": server_info['cpu']['count'],
             "disk": server_info['all_disk_space'],
@@ -30,7 +30,6 @@ def server_sync() -> None:
         headers = {
             "Content-Type": "application/json",
         }
-        # requests.get("https://php-ee6q4l.chbk.run/")
-        raise Exception("test")
-    #     r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
-    #                       data=json.dumps(data))
+
+        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
+                          data=json.dumps(data))
