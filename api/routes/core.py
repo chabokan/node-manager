@@ -21,8 +21,8 @@ async def connect(token: str, db=Depends(get_db)):
     ip = get_server_ip()
     data = {
         "token": token,
-        "ram": server_info['ram']['count'],
-        "cpu": server_info['cpu']['total'],
+        "ram": server_info['ram']['total'],
+        "cpu": server_info['cpu']['count'],
         "disk": server_info['all_disk_space'],
         "ip": ip,
         "ram_usage": server_info['ram']['used'],
