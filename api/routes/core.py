@@ -42,7 +42,8 @@ async def connect(token: str, db=Depends(get_db)):
         return {"success": False, "message": "some problem.", "r": r.json()}
 
 @router.get("/test/")
-async def test(db=Depends(get_db)):
+async def test():
+    db = get_db()
     if crud.get_setting(db, "token"):
         return "hast"
     else:
