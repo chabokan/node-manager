@@ -21,17 +21,14 @@ async def connect(token: str, db=Depends(get_db)):
     ip = get_server_ip()
     data = {
         "token": token,
-        "ram": "8",
-        "cpu": "2",
-        "disk": "100",
+        "ram": server_info['ram']['count'],
+        "cpu": server_info['cpu']['total'],
+        "disk": server_info['all_disk_space'],
         "ip": ip,
-        "ram_usage": "3",
-        "cpu_usage": "1",
-        "disk_usage": "5",
-        "disk_data": [
-            {"s": "b"},
-            {"s": "b"},
-        ]
+        "ram_usage": server_info['ram']['used'],
+        "cpu_usage": server_info['cpu']['usage'],
+        "disk_usage": server_info['all_disk_usage'],
+        "disk_data": server_info['disk']
     }
     headers = {
         "Content-Type": "application/json",
@@ -43,3 +40,8 @@ async def connect(token: str, db=Depends(get_db)):
         return {"success": True, "message": "node connected to chabokan successfully."}
     else:
         return {"success": False, "message": "some problem.", "r": r.json()}
+
+# @router.get("/test/")
+# async def test():
+#     server_info = get_system_info()
+#     return server_info
