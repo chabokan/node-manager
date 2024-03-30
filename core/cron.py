@@ -7,10 +7,11 @@ import crud
 from api.helper import get_server_ip, get_system_info
 from core.db import get_db
 from main import app
+from models import ServerUsage
 
 
 @app.on_event("startup")
-@repeat_every(seconds=60, raise_exceptions=True)
+@repeat_every(seconds=300, raise_exceptions=True)
 def server_sync() -> None:
     db = next(get_db())
     if crud.get_setting(db, "token"):
@@ -32,3 +33,17 @@ def server_sync() -> None:
         }
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
                           data=json.dumps(data), timeout=15)
+
+
+@app.on_event("startup")
+@repeat_every(seconds=60, raise_exceptions=True)
+def monitor_server_usage() -> None:
+    db = next(get_db())
+    # if crud.get_setting(db, "token"):
+    server_info = get_system_info()
+    crud.create_server_usage(db,
+                             ServerUsage(
+                                 ram=server_info['ram']['used'],
+                                 cpu=server_info['cpu']['usage'],
+                                 disk=server_info['all_disk_usage']
+                             ))
