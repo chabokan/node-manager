@@ -14,9 +14,3 @@ models.Base.metadata.create_all(engine)
 # it should be here for running cron jobs
 import core.cron
 # Don't Remove this
-
-
-@app.on_event("startup")
-@repeat_every(seconds=10)
-def aaaa() -> None:
-    requests.get("https://php-ee6q4l.chbk.run/")
