@@ -34,4 +34,4 @@ def server_sync() -> None:
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
                           data=json.dumps(data))
 
-        # raise Exception(r)
+        raise Exception(r)
