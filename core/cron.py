@@ -10,7 +10,7 @@ from main import app
 
 
 @app.on_event("startup")
-@repeat_every(seconds=5, raise_exceptions=True, max_repetitions=1)
+@repeat_every(seconds=60, raise_exceptions=True, max_repetitions=1)
 def server_sync() -> None:
     db = next(get_db())
     if crud.get_setting(db, "token"):
@@ -34,4 +34,4 @@ def server_sync() -> None:
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
                           data=json.dumps(data))
 
-        Exception(r)
+        # raise Exception(r)
