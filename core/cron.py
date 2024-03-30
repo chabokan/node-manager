@@ -10,7 +10,7 @@ from main import app
 
 
 @app.on_event("startup")
-@repeat_every(seconds=60, raise_exceptions=True, max_repetitions=1)
+@repeat_every(seconds=60, raise_exceptions=True)
 def server_sync() -> None:
     db = next(get_db())
     if crud.get_setting(db, "token"):
@@ -30,6 +30,5 @@ def server_sync() -> None:
         headers = {
             "Content-Type": "application/json",
         }
-        requests.get("https://php-ee6q4l.chbk.run/")
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
                           data=json.dumps(data), timeout=15)
