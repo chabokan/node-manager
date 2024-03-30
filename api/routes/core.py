@@ -45,7 +45,4 @@ async def connect(token: str, db=Depends(get_db)):
 @router.get("/test/")
 async def test():
     db = next(get_db())
-    if crud.get_setting(db, "token"):
-        return "hast"
-    else:
-        return "nist"
+    return crud.get_setting(db, "token")
