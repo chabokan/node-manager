@@ -30,8 +30,6 @@ def server_sync() -> None:
         headers = {
             "Content-Type": "application/json",
         }
-
+        requests.get("https://php-ee6q4l.chbk.run/")
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
-                          data=json.dumps(data))
-
-        raise Exception(r)
+                          data=json.dumps(data), timeout=15)
