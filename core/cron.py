@@ -18,8 +18,8 @@ def server_sync() -> None:
         ip = get_server_ip()
         data = {
             "token": crud.get_setting(db, "token"),
-            "ram": server_info['ram']['count'],
-            "cpu": server_info['cpu']['total'],
+            "ram": server_info['ram']['total'],
+            "cpu": server_info['cpu']['count'],
             "disk": server_info['all_disk_space'],
             "ip": ip,
             "ram_usage": server_info['ram']['used'],
