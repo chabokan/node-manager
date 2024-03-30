@@ -10,10 +10,12 @@ from main import app
 
 
 @app.on_event("startup")
-@repeat_every(seconds=300)
+@repeat_every(seconds=60)
 def server_sync() -> None:
+    print("run server_sync")
     db = get_db()
     if crud.get_setting(db, "token"):
+        print("run server_sync: we have token")
         server_info = get_system_info()
         ip = get_server_ip()
         data = {
