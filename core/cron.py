@@ -33,5 +33,5 @@ def server_sync() -> None:
 
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
                           data=json.dumps(data))
-        if r.status_code != 200:
-            raise Exception(r)
+
+        Exception(r)
