@@ -45,4 +45,4 @@ async def connect(token: str, db=Depends(get_db)):
 @router.get("/test/")
 async def test():
     db = next(get_db())
-    return crud.get_setting(db, "token")
+    return crud.get_setting(db, "token").value
