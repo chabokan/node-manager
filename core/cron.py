@@ -10,7 +10,7 @@ from main import app
 
 
 @app.on_event("startup")
-@repeat_every(seconds=5)
+@repeat_every(seconds=5, raise_exceptions=True, max_repetitions=1)
 def server_sync() -> None:
     db = next(get_db())
     if crud.get_setting(db, "token"):
