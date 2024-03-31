@@ -4,7 +4,7 @@ import crud
 from api.helper import set_job_run_in_hub
 from core.db import get_db
 
-db = get_db()
+db = next(get_db())
 jobs = crud.get_server_not_run_root_jobs(db)
 
 for job in jobs:
