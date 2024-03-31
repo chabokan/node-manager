@@ -1,7 +1,10 @@
+import json
 import subprocess
 
 import psutil
 import requests
+
+import crud
 
 
 def get_system_info():
@@ -64,3 +67,15 @@ def get_server_ip():
 
 def byte_to_gb(value):
     return round(value / 1024 / 1024 / 1024, 2)
+
+
+def set_job_run_in_hub(db, key):
+    data = {
+        "token": crud.get_setting(db, "token").value,
+        "key": key
+    }
+    headers = {
+        "Content-Type": "application/json",
+    }
+    r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/jobs/", headers=headers,
+                      data=json.dumps(data), timeout=15)

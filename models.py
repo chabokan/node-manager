@@ -17,3 +17,13 @@ class ServerUsage(Base):
     cpu = Column(Float)
     disk = Column(Float)
     created = Column(DateTime)
+
+
+class ServerRootJob(Base):
+    __tablename__ = "server_root_jobs"
+    id = Column(Integer, index=True, primary_key=True)
+    name = Column(String)
+    key = Column(String)
+    data = Column(String)
+    run_at = Column(DateTime, nullable=True)
+    created = Column(DateTime)

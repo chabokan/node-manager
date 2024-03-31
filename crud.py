@@ -1,8 +1,9 @@
 import datetime
 
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.operators import is_
 
-from models import Setting, ServerUsage
+from models import Setting, ServerUsage, ServerRootJob
 
 
 def create_setting(session: Session, request: Setting) -> Setting:
@@ -39,3 +40,28 @@ def create_server_usage(session: Session, request: ServerUsage) -> ServerUsage:
 
 def get_all_server_usages(session: Session) -> list[ServerUsage]:
     return session.query(ServerUsage).all()
+
+
+def get_server_not_run_root_jobs(session: Session) -> list[ServerRootJob]:
+    return session.query(ServerRootJob).filter(ServerRootJob.run_at.is_(None))
+
+
+def create_server_root_job(session: Session, request: ServerRootJob) -> ServerRootJob:
+    db_obj = ServerRootJob(
+        name=request.name,
+        key=request.key,
+        data=request.data,
+        created=datetime.datetime.now()
+    )
+    session.add(db_obj)
+    session.commit()
+    session.refresh(db_obj)
+    return db_obj
+
+
+def set_server_root_job_run(session: Session, id) -> ServerRootJob:
+    server_root_job = session.query(ServerRootJob).filter(ServerRootJob.id == id).first()
+    server_root_job.run_at = datetime.datetime.now()
+    session.commit()
+    session.refresh(server_root_job)
+    return server_root_job
