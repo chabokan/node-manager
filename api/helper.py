@@ -72,10 +72,11 @@ def byte_to_gb(value):
 def set_job_run_in_hub(db, key):
     data = {
         "token": crud.get_setting(db, "token").value,
-        "key": key
+        "key": key,
+        "status": "success"
     }
     headers = {
         "Content-Type": "application/json",
     }
-    r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/jobs/", headers=headers,
+    r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/receive-server-jobs/", headers=headers,
                       data=json.dumps(data), timeout=15)

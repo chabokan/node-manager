@@ -62,7 +62,7 @@ def get_jobs_from_hub() -> None:
         headers = {
             "Content-Type": "application/json",
         }
-        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/jobs/", headers=headers,
+        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-jobs/", headers=headers,
                           data=json.dumps(data), timeout=15)
         if r.status_code == 200:
             BackgroundTasks.add_task(process_hub_jobs, r.json()['jobs'])
