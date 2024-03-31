@@ -54,12 +54,7 @@ def monitor_server_usage() -> None:
 @app.on_event("startup")
 @repeat_every(seconds=30, raise_exceptions=True)
 def get_jobs_from_hub() -> None:
-    db = next(get_db())
-    if crud.get_setting(db, "token"):
-        data = {"token": crud.get_setting(db, "token").value}
-        headers = {"Content-Type": "application/json", }
-        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-jobs/", headers=headers,
-                          data=json.dumps(data), timeout=15)
-        if r.status_code == 200:
-            background_tasks = BackgroundTasks()
-            background_tasks.add_task(process_hub_jobs, jobs=r.json()['data'])
+    headers = {
+        "Content-Type": "application/json",
+    }
+    r = requests.post("http://0.0.0.0/api/v1/jobs/", headers=headers, timeout=15)

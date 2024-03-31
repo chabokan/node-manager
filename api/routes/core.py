@@ -1,12 +1,13 @@
 import json
 import os
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 import requests
 
 import crud
 from api.helper import get_system_info, run_bash_command, get_server_ip
 from core.db import get_db
+from core.tasks import process_hub_jobs
 from models import Setting
 
 router = APIRouter()
@@ -40,6 +41,19 @@ async def connect(token: str, db=Depends(get_db)):
         return {"success": True, "message": "node connected to chabokan successfully."}
     else:
         return {"success": False, "message": "some problem.", "r": r.json()}
+
+
+@router.get("/jobs/")
+async def jobs(background_tasks: BackgroundTasks, db=Depends(get_db)):
+    if crud.get_setting(db, key="token"):
+        data = {"token": crud.get_setting(db, "token").value}
+        headers = {"Content-Type": "application/json", }
+        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-jobs/", headers=headers,
+                          data=json.dumps(data), timeout=15)
+        if r.status_code == 200:
+            background_tasks.add_task(process_hub_jobs, jobs=r.json()['data'])
+
+        return {"success": True}
 
 #
 # @router.get("/test/")
