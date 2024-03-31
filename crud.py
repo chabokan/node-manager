@@ -1,8 +1,6 @@
 import datetime
 
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.operators import is_
-
 from models import Setting, ServerUsage, ServerRootJob
 
 
@@ -43,7 +41,7 @@ def get_all_server_usages(session: Session) -> list[ServerUsage]:
 
 
 def get_server_not_run_root_jobs(session: Session) -> list[ServerRootJob]:
-    return session.query(ServerRootJob).filter(ServerRootJob.run_at.is_(None))
+    return session.query(ServerRootJob).filter(ServerRootJob.run_at.is_(None)).all()
 
 
 def create_server_root_job(session: Session, request: ServerRootJob) -> ServerRootJob:
