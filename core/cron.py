@@ -54,7 +54,9 @@ def monitor_server_usage() -> None:
 @app.on_event("startup")
 @repeat_every(seconds=30, raise_exceptions=True)
 def get_jobs_from_hub() -> None:
-    headers = {
-        "Content-Type": "application/json",
-    }
-    r = requests.get("http://0.0.0.0/api/v1/jobs/", headers=headers, timeout=15)
+    db = next(get_db())
+    if crud.get_setting(db, "token"):
+        headers = {
+            "Content-Type": "application/json",
+        }
+        r = requests.get("http://0.0.0.0/api/v1/jobs/", headers=headers, timeout=15)
