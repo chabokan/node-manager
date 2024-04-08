@@ -1,3 +1,4 @@
+import json
 import os
 
 import crud
@@ -13,8 +14,10 @@ for job in jobs:
         set_job_run_in_hub(db, job.key)
         os.system("reboot")
     elif job.name == "create_service":
-        create_service(db, job.key, job.data)
+        data = json.loads(job.data)
+        create_service(db, job.key, data)
         crud.set_server_root_job_run(db, job.id)
     elif job.name == "delete_service":
-        delete_service(db, job.key, job.data)
+        data = json.loads(job.data)
+        delete_service(db, job.key, data)
         crud.set_server_root_job_run(db, job.id)
