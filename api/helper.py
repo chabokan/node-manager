@@ -87,7 +87,6 @@ def set_job_run_in_hub(db, key):
 
 
 def create_service(db, key, data):
-    envs = data['envs']
     platform = data['platform']
     home_path = f"/home/{data['name']}"
     if platform['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
@@ -99,11 +98,11 @@ def create_service(db, key, data):
 
 
 def delete_service(db, key, data):
-    envs = data['envs']
     platform = data['platform']
     home_path = f"/home/{data['name']}"
     if platform['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
         home_path = f"/storage/{data['name']}"
+    delete_container_task(data['name'], home_path)
 
 
 def change_user_home_path(username, home_path):
