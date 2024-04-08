@@ -98,11 +98,7 @@ def create_service(db, key, data):
 
 
 def delete_service(db, key, data):
-    platform = data['platform']
-    home_path = f"/home/{data['name']}"
-    if platform['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
-        home_path = f"/storage/{data['name']}"
-    delete_container_task(data['name'], home_path)
+    delete_container_task(data['name'])
     set_job_run_in_hub(db, key)
 
 
@@ -322,10 +318,12 @@ def create_container_task(name, envs, platform, home_path, options, ports, cpu_l
 #                 tasks.limit_container(container.id)
 
 
-def delete_os_user(username, home_path, delete_home):
+def delete_os_user(username, delete_home):
     command = "userdel "
     if delete_home:
-        os.system(f"rm -rf {home_path}")
+        os.system(f"rm -rf /home/{username}")
+        os.system(f"rm -rf /storage/{username}")
+
     os.system(f"{command}{username}")
 
 
@@ -338,8 +336,8 @@ def delete_volumes(container_name):
             volume.remove()
 
 
-def delete_container_task(container_name, home_path, delete_home=True, delete_image=True):
-    delete_os_user(container_name, home_path, delete_home)
+def delete_container_task(container_name, delete_home=True, delete_image=True):
+    delete_os_user(container_name, delete_home)
     docker_manager = docker.from_env()
     try:
         con = docker_manager.containers.get(container_name)
