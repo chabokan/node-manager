@@ -2,7 +2,7 @@ import json
 import os
 
 import crud
-from api.helper import set_job_run_in_hub, create_service, delete_service
+from api.helper import set_job_run_in_hub, create_service, delete_service, service_action
 from core.db import get_db
 
 db = next(get_db())
@@ -13,11 +13,15 @@ for job in jobs:
         crud.set_server_root_job_run(db, job.id)
         set_job_run_in_hub(db, job.key)
         os.system("reboot")
-    elif job.name == "create_service":
+    elif job.name == "service_create":
         data = json.loads(job.data)
         create_service(db, job.key, data)
         crud.set_server_root_job_run(db, job.id)
-    elif job.name == "delete_service":
+    elif job.name == "service_delete":
         data = json.loads(job.data)
         delete_service(db, job.key, data)
+        crud.set_server_root_job_run(db, job.id)
+    elif job.name == "service_action":
+        data = json.loads(job.data)
+        service_action(db, job.key, data)
         crud.set_server_root_job_run(db, job.id)

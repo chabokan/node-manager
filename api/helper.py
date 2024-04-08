@@ -1,5 +1,6 @@
 import json
 import os
+import string
 import subprocess
 
 import docker
@@ -121,7 +122,7 @@ def create_os_user(username, home_path, password):
     set_password(username, str(password))
 
 
-def get_volumes(main_volumes, name, container_options, home_path, container=None):
+def get_volumes(main_volumes, name, container_options, home_path):
     volumes = []
     user_dir = home_path + "/"
     docker_manager = docker.from_env()
@@ -355,3 +356,111 @@ def delete_container_task(container_name, delete_home=True, delete_image=True):
         delete_volumes(container_name)
     except:
         pass
+
+
+def get_pass(password_len=12):
+    new_password = None
+    chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
+
+    while new_password is None or new_password[0] in string.digits:
+        new_password = ''.join([chars[ord(os.urandom(1)) % len(chars)] for i in range(password_len)])
+    return new_password
+
+
+def change_ftp_password_task(container_name):
+    set_password(container_name, str(get_pass()))
+
+
+def stop_container_task(container_name):
+    docker_manager = docker.from_env()
+    container_exist = False
+    docker_container = ""
+    try:
+        docker_container = docker_manager.containers.get(container_name)
+        container_exist = True
+    except:
+        pass
+
+    if container_exist:
+        try:
+            docker_container.stop()
+        except:
+            pass
+            # check it
+
+
+def update_container(container_name, home_path, platform, container_options, envs, ports, ram_limit, cpu_limit):
+    if platform['name'] == "docker":
+        pass
+    # update_dockerfile_container(container_name)
+    else:
+
+        container_ports = []
+        for port in ports:
+            container_ports.append(f"{port['outside_port']}:{port['inside_port']}")
+
+        try:
+            uid = os.popen(f'id -u {container_name}').read()
+            uid = int(uid)
+            change_user_home_path(container_name, home_path)
+        except:
+            create_os_user(container_name, home_path, container_options['ftp_password'])
+            uid = os.popen(f'id -u {container_name}').read()
+            uid = int(uid)
+
+        envs.append(f"CHBK_AS_USER={container_name}")
+        envs.append(f"CHBK_USER_UID={uid}")
+
+        set_password(container_name, container_options['ftp_password'])
+        docker_manager = docker.from_env()
+        container_exist = False
+        docker_container = ""
+        try:
+            docker_container = docker_manager.containers.get(container_name)
+            container_exist = True
+        except:
+            pass
+
+        if container_exist:
+            image_repo, image_tag = get_container_default_image_name(platform, container_options)
+            try:
+                docker_container.commit(repository=container_name, tag='latest')
+                image_repo = container_name
+                image_tag = "latest"
+            except:
+                pass
+            try:
+                docker_container.remove(v=True, force=True)
+            except:
+                pass
+            volumes = get_volumes(platform, container_name, container_options, home_path)
+            run_response = container_run(f"{image_repo}:{image_tag}", container_name, envs, container_ports,
+                                         volumes,
+                                         ram_limit,
+                                         cpu_limit, platform['command'], platform['name'],
+                                         home_path=home_path)
+            if run_response['response'] != 0 and run_response['response'] != 32000:
+                raise Exception("some problem in docker run command")
+
+            # tasks.limit_container(container.id)
+
+    # tasks.rebuild_firewall_rules(container.name)
+
+
+def service_action(db, key, data):
+    home_path = f"/home/{data['name']}"
+    if data['platform']['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
+        home_path = f"/storage/{data['name']}"
+
+    if data['action'] == "stop":
+        stop_container_task(data['name'])
+        change_ftp_password_task(data['name'])
+    # elif data['action'] == "start":
+    #     tasks.update_container(container.id)
+    elif data['action'] == "restart":
+        update_container(container_name=data['name'], home_path=home_path, platform=data['platform'],
+                         container_options=data['options'], envs=data['envs'], ports=data['ports'],
+                         ram_limit=data['ram_limit'], cpu_limit=data['cpu_limit'])
+        set_job_run_in_hub(db, key)
+    # elif data['action'] == "rebuild":
+    #     tasks.rebuild_container(container.name, container.platform.name, container.id, get_home_path(container))
