@@ -89,7 +89,7 @@ def create_service(data):
     envs = data['envs']
     platform = data['platform']
     home_path = f"/home/{data['name']}/"
-    if platform.name.split(":")[0] in settings.STORAGE_PLATFORMS:
+    if platform['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
         home_path = f"/storage/{data['name']}/"
 
     create_container_task(data['name'], data['envs'], data['platform'], home_path, data['options'], data['ports'],
@@ -100,7 +100,7 @@ def delete_service(data):
     envs = data['envs']
     platform = data['platform']
     home_path = f"/home/{data['name']}/"
-    if platform.name.split(":")[0] in settings.STORAGE_PLATFORMS:
+    if platform['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
         home_path = f"/storage/{data['name']}/"
 
 
