@@ -195,9 +195,6 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
     if platform_name and isinstance(platform_name, str) and "mysql" in platform_name:
         command += "--cap-add=sys_nice "
 
-    if "NO_D_L" not in str(envs) and settings.LIMIT_DISK:
-        command += f"--device-write-bps {device_name}:10mb --device-read-bps {device_name}:30mb "
-
     for env in envs:
         if "CHBK_RUN_CMD" in env:
             run_command = env.split("=")[1]
