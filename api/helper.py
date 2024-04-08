@@ -214,8 +214,8 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
     cpu_count = os.cpu_count()
     db = next(get_db())
     all_usage = crud.get_all_server_usages(db)
-    all_ram = all_usage[0]['ram']
-    all_cpu = all_usage[0]['cpu']
+    all_ram = all_usage[0].ram
+    all_cpu = all_usage[0].cpu
     if limit:
         command += f'-m {ram}g --cpus="{cpu}" '
     else:
