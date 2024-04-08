@@ -93,7 +93,7 @@ def create_service(data):
         home_path = f"/storage/{data['name']}/"
 
     create_container_task(data['name'], data['envs'], data['platform'], home_path, data['options'], data['ports'],
-                          data['cpu_limit'], data['ram_limit'])
+                          data['cpu_limit'], data['ram_limit'],data['volumes'])
 
 
 def delete_service(data):
@@ -123,14 +123,14 @@ def create_os_user(username, home_path, password):
     set_password(username, str(password))
 
 
-def get_volumes(platform, name, container_options, home_path, container=None):
+def get_volumes(main_volumes, name, container_options, home_path, container=None):
     volumes = []
     user_dir = home_path + "/"
     docker_manager = docker.from_env()
-    for volume in platform.volumes.all():
-        vol_name = name + "_" + volume.name
-        key = user_dir + volume.name
-        value = volume.directory
+    for volume in main_volumes:
+        vol_name = name + "_" + volume['name']
+        key = user_dir + volume['name']
+        value = volume['directory']
         if not os.path.exists(key):
             os.mkdir(key)
         try:
@@ -143,7 +143,7 @@ def get_volumes(platform, name, container_options, home_path, container=None):
                                           driver="local",
                                           driver_opts={"device": key, "type": "none", "o": "bind"})
 
-        if volume.type == "volume":
+        if volume['type'] == "volume":
             volumes.append(f"{vol_name}:{value}")
         else:
             volumes.append(f"{key}:{value}")
@@ -241,7 +241,7 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
     return run_response
 
 
-def create_container_task(name, envs, platform, home_path, options, ports, cpu_limit, ram_limit):
+def create_container_task(name, envs, platform, home_path, options, ports, cpu_limit, ram_limit,main_volumes):
     if platform['name'] == "docker":
         pass
         # create_dockerfile_container_task(envs, platform)
@@ -252,7 +252,7 @@ def create_container_task(name, envs, platform, home_path, options, ports, cpu_l
 
         create_os_user(main_container_name, home_path, container_options['ftp_password'])
 
-        volumes = get_volumes(platform, main_container_name, container_options, home_path)
+        volumes = get_volumes(main_volumes, main_container_name, container_options, home_path)
 
         for port in ports:
             ports.append(f"{port['outside_port']}:{port['inside_port']}")
