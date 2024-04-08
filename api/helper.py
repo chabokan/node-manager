@@ -274,8 +274,8 @@ def create_container_task(name, envs, platform, home_path, options, ports, cpu_l
             raise Exception("image not found")
 
         run_response = container_run(f"{image_repo}:{image_tag}", main_container_name, envs, container_ports, volumes,
-                                     ram_limit, cpu_limit, platform.command,
-                                     platform.name, home_path=home_path)
+                                     ram_limit, cpu_limit, platform['command'],
+                                     platform['name'], home_path=home_path)
 
         if run_response['response'] != 0 and run_response['response'] != 32000:
             raise Exception("some problem in docker run command")
