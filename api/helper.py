@@ -449,6 +449,8 @@ def update_container(container_name, home_path, platform, container_options, env
 
 def service_action(db, key, data):
     home_path = f"/home/{data['name']}"
+    if "platform" not in data:
+        return
     if data['platform']['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
         home_path = f"/storage/{data['name']}"
 
