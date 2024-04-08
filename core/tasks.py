@@ -17,6 +17,6 @@ def process_hub_jobs(jobs):
                 crud.create_server_root_job(db, ServerRootJob(name=pending_job['name'], key=pending_job['key'],
                                                               data=pending_job['data']))
             elif pending_job['name'] == "create_service":
-                create_service(pending_job['data'])
+                create_service(db, pending_job['key'], pending_job['data'])
             elif pending_job['name'] == "delete_service":
-                delete_service(pending_job['data'])
+                delete_service(db, pending_job['key'], pending_job['data'])

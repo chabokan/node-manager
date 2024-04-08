@@ -85,7 +85,7 @@ def set_job_run_in_hub(db, key):
                       data=json.dumps(data), timeout=15)
 
 
-def create_service(data):
+def create_service(db, key, data):
     envs = data['envs']
     platform = data['platform']
     home_path = f"/home/{data['name']}/"
@@ -93,10 +93,11 @@ def create_service(data):
         home_path = f"/storage/{data['name']}/"
 
     create_container_task(data['name'], data['envs'], data['platform'], home_path, data['options'], data['ports'],
-                          data['cpu_limit'], data['ram_limit'],data['volumes'])
+                          data['cpu_limit'], data['ram_limit'], data['volumes'])
+    set_job_run_in_hub(db, key)
 
 
-def delete_service(data):
+def delete_service(db, key, data):
     envs = data['envs']
     platform = data['platform']
     home_path = f"/home/{data['name']}/"
@@ -241,7 +242,7 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
     return run_response
 
 
-def create_container_task(name, envs, platform, home_path, options, ports, cpu_limit, ram_limit,main_volumes):
+def create_container_task(name, envs, platform, home_path, options, ports, cpu_limit, ram_limit, main_volumes):
     if platform['name'] == "docker":
         pass
         # create_dockerfile_container_task(envs, platform)
