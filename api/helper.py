@@ -103,6 +103,7 @@ def delete_service(db, key, data):
     if platform['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
         home_path = f"/storage/{data['name']}"
     delete_container_task(data['name'], home_path)
+    set_job_run_in_hub(db, key)
 
 
 def change_user_home_path(username, home_path):
