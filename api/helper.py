@@ -87,14 +87,17 @@ def set_job_run_in_hub(db, key):
                       data=json.dumps(data), timeout=15)
 
 
-def create_service(db, key, data):
+def get_home_path(data):
     platform = data['platform']
     home_path = f"/home/{data['name']}"
     if platform['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
         home_path = f"/storage/{data['name']}"
 
-    create_container_task(data['name'], data['envs'], data['platform'], home_path, data['options'], data['ports'],
-                          data['cpu_limit'], data['ram_limit'], data['volumes'])
+    return home_path
+
+
+def create_service(db, key, data):
+    create_container_task(data)
     set_job_run_in_hub(db, key)
 
 
@@ -238,27 +241,28 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
     return run_response
 
 
-def create_container_task(name, envs, platform, home_path, options, ports, cpu_limit, ram_limit, main_volumes):
-    if platform['name'] == "docker":
+def create_container_task(data):
+    if data['platform']['name'] == "docker":
         pass
         # create_dockerfile_container_task(envs, platform)
     else:
-        container_options = options
-        main_container_name = name
-        os.system(f"mkdir -p {home_path}")
+        container_options = data['options']
+        main_container_name = data['name']
+        os.system(f"mkdir -p {get_home_path(data)}")
 
-        create_os_user(main_container_name, home_path, container_options['ftp_password'])
+        create_os_user(main_container_name, get_home_path(data), container_options['ftp_password'])
 
-        volumes = get_volumes(main_volumes, main_container_name, container_options, home_path)
+        volumes = get_volumes(data['volumes'], main_container_name, container_options, get_home_path(data))
         container_ports = []
-        for port in ports:
+        for port in data['ports']:
             container_ports.append(f"{port['outside_port']}:{port['inside_port']}")
 
         uid = os.popen(f'id -u {main_container_name}').read()
         uid = int(uid)
-        envs.append(f"CHBK_AS_USER={main_container_name}")
-        envs.append(f"CHBK_USER_UID={uid}")
-        image_repo, image_tag = get_container_default_image_name(platform, options)
+        container_envs = data['envs']
+        container_envs.append(f"CHBK_AS_USER={main_container_name}")
+        container_envs.append(f"CHBK_USER_UID={uid}")
+        image_repo, image_tag = get_container_default_image_name(data['platform'], data['options'])
         docker_manager = docker.from_env()
         try:
             docker_manager.images.pull(repository=image_repo, tag=image_tag)
@@ -269,9 +273,10 @@ def create_container_task(name, envs, platform, home_path, options, ports, cpu_l
         except:
             raise Exception("image not found")
 
-        run_response = container_run(f"{image_repo}:{image_tag}", main_container_name, envs, container_ports, volumes,
-                                     ram_limit, cpu_limit, platform['command'],
-                                     platform['name'], home_path=home_path)
+        run_response = container_run(f"{image_repo}:{image_tag}", main_container_name, container_envs, container_ports,
+                                     volumes,
+                                     data['ram_limit'], data['cpu_limit'], data['platform']['command'],
+                                     data['platform']['name'], home_path=get_home_path(data))
 
         if run_response['response'] != 0 and run_response['response'] != 32000:
             raise Exception("some problem in docker run command")
@@ -389,15 +394,15 @@ def stop_container_task(container_name):
             # check it
 
 
-def update_container(container_name, home_path, platform, container_options, envs, ports, ram_limit, cpu_limit,
-                     main_volumes):
-    if platform['name'] == "docker":
+def update_container(data):
+    container_name = data['name']
+    home_path = get_home_path(data)
+    if data['platform']['name'] == "docker":
         pass
     # update_dockerfile_container(container_name)
     else:
-
         container_ports = []
-        for port in ports:
+        for port in data['ports']:
             container_ports.append(f"{port['outside_port']}:{port['inside_port']}")
 
         try:
@@ -405,14 +410,15 @@ def update_container(container_name, home_path, platform, container_options, env
             uid = int(uid)
             change_user_home_path(container_name, home_path)
         except:
-            create_os_user(container_name, home_path, container_options['ftp_password'])
+            create_os_user(container_name, home_path, data['options']['ftp_password'])
             uid = os.popen(f'id -u {container_name}').read()
             uid = int(uid)
 
-        envs.append(f"CHBK_AS_USER={container_name}")
-        envs.append(f"CHBK_USER_UID={uid}")
+        container_envs = data['envs']
+        container_envs.append(f"CHBK_AS_USER={container_name}")
+        container_envs.append(f"CHBK_USER_UID={uid}")
 
-        set_password(container_name, container_options['ftp_password'])
+        set_password(container_name, data['options']['ftp_password'])
         docker_manager = docker.from_env()
         container_exist = False
         docker_container = ""
@@ -423,7 +429,7 @@ def update_container(container_name, home_path, platform, container_options, env
             pass
 
         if container_exist:
-            image_repo, image_tag = get_container_default_image_name(platform, container_options)
+            image_repo, image_tag = get_container_default_image_name(data['platform'], data['options'])
             try:
                 docker_container.commit(repository=container_name, tag='latest')
                 image_repo = container_name
@@ -434,36 +440,29 @@ def update_container(container_name, home_path, platform, container_options, env
                 docker_container.remove(v=True, force=True)
             except:
                 pass
-            volumes = get_volumes(main_volumes, container_name, container_options, home_path)
-            run_response = container_run(f"{image_repo}:{image_tag}", container_name, envs, container_ports,
+            volumes = get_volumes(data['volumes'], container_name, data['options'], home_path)
+            run_response = container_run(f"{image_repo}:{image_tag}", container_name, container_envs, container_ports,
                                          volumes,
-                                         ram_limit,
-                                         cpu_limit, platform['command'], platform['name'],
+                                         data['ram_limit'],
+                                         data['cpu_limit'], data['platform']['command'], data['platform']['name'],
                                          home_path=home_path)
             if run_response['response'] != 0 and run_response['response'] != 32000:
                 raise Exception("some problem in docker run command")
-
             # tasks.limit_container(container.id)
+        else:
+            create_container_task(data)
 
     # tasks.rebuild_firewall_rules(container.name)
 
 
 def service_action(db, key, data):
-    home_path = f"/home/{data['name']}"
-    if "platform" not in data:
-        return
-    if data['platform']['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
-        home_path = f"/storage/{data['name']}"
-
     if data['action'] == "stop":
         stop_container_task(data['name'])
         change_ftp_password_task(data['name'])
     # elif data['action'] == "start":
     #     tasks.update_container(container.id)
     elif data['action'] == "restart":
-        update_container(container_name=data['name'], home_path=home_path, platform=data['platform'],
-                         container_options=data['options'], envs=data['envs'], ports=data['ports'],
-                         ram_limit=data['ram_limit'], cpu_limit=data['cpu_limit'], main_volumes=data['volumes'])
+        update_container(data)
         set_job_run_in_hub(db, key)
     # elif data['action'] == "rebuild":
     #     tasks.rebuild_container(container.name, container.platform.name, container.id, get_home_path(container))
