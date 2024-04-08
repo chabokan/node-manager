@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "node-manager"
     SQLALCHEMY_DATABASE_URL: str = "sqlite:///./sql_app.db"
-    STORAGE_PLATFORMS = ["minio", "ftp", "nextcloud", "registry", "filerun"]
+    STORAGE_PLATFORMS: list = ["minio", "ftp", "nextcloud", "registry", "filerun"]
 
 
 settings = Settings()  # type: ignore
