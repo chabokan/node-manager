@@ -389,7 +389,8 @@ def stop_container_task(container_name):
             # check it
 
 
-def update_container(container_name, home_path, platform, container_options, envs, ports, ram_limit, cpu_limit):
+def update_container(container_name, home_path, platform, container_options, envs, ports, ram_limit, cpu_limit,
+                     main_volumes):
     if platform['name'] == "docker":
         pass
     # update_dockerfile_container(container_name)
@@ -433,7 +434,7 @@ def update_container(container_name, home_path, platform, container_options, env
                 docker_container.remove(v=True, force=True)
             except:
                 pass
-            volumes = get_volumes(platform, container_name, container_options, home_path)
+            volumes = get_volumes(main_volumes, container_name, container_options, home_path)
             run_response = container_run(f"{image_repo}:{image_tag}", container_name, envs, container_ports,
                                          volumes,
                                          ram_limit,
@@ -462,7 +463,7 @@ def service_action(db, key, data):
     elif data['action'] == "restart":
         update_container(container_name=data['name'], home_path=home_path, platform=data['platform'],
                          container_options=data['options'], envs=data['envs'], ports=data['ports'],
-                         ram_limit=data['ram_limit'], cpu_limit=data['cpu_limit'])
+                         ram_limit=data['ram_limit'], cpu_limit=data['cpu_limit'], main_volumes=data['volumes'])
         set_job_run_in_hub(db, key)
     # elif data['action'] == "rebuild":
     #     tasks.rebuild_container(container.name, container.platform.name, container.id, get_home_path(container))
