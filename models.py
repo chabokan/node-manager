@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text
 
 from core.db import Base
 
@@ -24,6 +24,6 @@ class ServerRootJob(Base):
     id = Column(Integer, index=True, primary_key=True)
     name = Column(String)
     key = Column(String)
-    data = Column(String)
+    data = Column(Text)
     run_at = Column(DateTime, nullable=True)
     created = Column(DateTime)
