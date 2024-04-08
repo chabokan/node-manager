@@ -8,6 +8,7 @@ import requests
 
 import crud
 from core.config import settings
+from core.db import get_db
 
 
 def get_system_info():
@@ -211,13 +212,14 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
         command += f"-p {port}/tcp -p {port}/udp "
 
     cpu_count = os.cpu_count()
+    db = next(get_db())
+    all_usage = crud.get_all_server_usages(db)
+    all_ram = all_usage[0]['ram']
+    all_cpu = all_usage[0]['cpu']
     if limit:
         command += f'-m {ram}g --cpus="{cpu}" '
     else:
-        if cpu_count < 12:
-            command += f'-m 8g --cpus="2" '
-        else:
-            command += f'-m 8g --cpus="6" '
+        command += f'-m {all_ram}g --cpus="{all_cpu}" '
 
     final_command = f'{command} --name {name} {image}'
 
