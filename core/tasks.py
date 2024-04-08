@@ -1,3 +1,5 @@
+import json
+
 import crud
 from core.db import get_db
 from models import ServerRootJob
@@ -14,4 +16,4 @@ def process_hub_jobs(jobs):
         for pending_job in pending_jobs:
             if pending_job['name'] in ["restart_server", "create_service", "delete_service"]:
                 crud.create_server_root_job(db, ServerRootJob(name=pending_job['name'], key=pending_job['key'],
-                                                              data=pending_job['data']))
+                                                              data=json.dumps(pending_job['data'])))
