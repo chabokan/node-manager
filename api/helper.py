@@ -254,9 +254,9 @@ def create_container_task(name, envs, platform, home_path, options, ports, cpu_l
         create_os_user(main_container_name, home_path, container_options['ftp_password'])
 
         volumes = get_volumes(main_volumes, main_container_name, container_options, home_path)
-
+        container_ports = []
         for port in ports:
-            ports.append(f"{port['outside_port']}:{port['inside_port']}")
+            container_ports.append(f"{port['outside_port']}:{port['inside_port']}")
 
         uid = os.popen(f'id -u {main_container_name}').read()
         uid = int(uid)
@@ -273,7 +273,7 @@ def create_container_task(name, envs, platform, home_path, options, ports, cpu_l
         except:
             raise Exception("image not found")
 
-        run_response = container_run(f"{image_repo}:{image_tag}", main_container_name, envs, ports, volumes,
+        run_response = container_run(f"{image_repo}:{image_tag}", main_container_name, envs, container_ports, volumes,
                                      ram_limit, cpu_limit, platform.command,
                                      platform.name, home_path=home_path)
 
