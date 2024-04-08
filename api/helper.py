@@ -101,9 +101,9 @@ def create_service(db, key, data):
 def delete_service(db, key, data):
     envs = data['envs']
     platform = data['platform']
-    home_path = f"/home/{data['name']}/"
+    home_path = f"/home/{data['name']}"
     if platform['name'].split(":")[0] in settings.STORAGE_PLATFORMS:
-        home_path = f"/storage/{data['name']}/"
+        home_path = f"/storage/{data['name']}"
 
 
 def change_user_home_path(username, home_path):
@@ -283,6 +283,7 @@ def create_container_task(name, envs, platform, home_path, options, ports, cpu_l
     #
     # tasks.rebuild_firewall_rules(container.name)
 
+
 # def create_dockerfile_container_task(container_id):
 #     containers = Container.objects.filter(id=container_id)
 #     if containers.count() > 0:
@@ -319,3 +320,40 @@ def create_container_task(name, envs, platform, home_path, options, ports, cpu_l
 #                 conti.status = "building"
 #                 conti.save()
 #                 tasks.limit_container(container.id)
+
+
+def delete_os_user(username, home_path, delete_home):
+    command = "userdel "
+    if delete_home:
+        os.system(f"rm -rf {home_path}")
+    os.system(f"{command}{username}")
+
+
+def delete_volumes(container_name):
+    docker_manager = docker.from_env()
+    all_volumes = docker_manager.volumes.list()
+
+    for volume in all_volumes:
+        if volume.name.startswith(container_name):
+            volume.remove()
+
+
+def delete_container_task(container_name, home_path, delete_home=True, delete_image=True):
+    delete_os_user(container_name, home_path, delete_home)
+    docker_manager = docker.from_env()
+    try:
+        con = docker_manager.containers.get(container_name)
+        con.remove(v=True, force=True)
+    except:
+        pass
+
+    try:
+        if delete_image:
+            docker_manager.images.remove(container_name, force=True)
+    except:
+        pass
+
+    try:
+        delete_volumes(container_name)
+    except:
+        pass
