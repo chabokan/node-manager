@@ -3,9 +3,13 @@ import os
 import string
 import subprocess
 
+import dateutil
 import docker
 import psutil
+import pytz
 import requests
+from docker.errors import APIError
+from datetime import datetime
 
 import crud
 from core.config import settings
@@ -455,14 +459,78 @@ def update_container(data):
     # tasks.rebuild_firewall_rules(container.name)
 
 
+def pull_container_image(platform, container_options):
+    if platform['name'] != "docker":
+        build_args = []
+        if "build_args" in container_options:
+            build_args = container_options['build_args']
+
+        image = platform['image']
+
+        (image_repo, image_tag) = image.split(':')
+        if len(build_args) > 0:
+            image_tag = ""
+            build_args.sort(key=lambda x: x["key"], reverse=False)
+            for args in build_args:
+                if len(image_tag) > 0:
+                    image_tag += "-" + args['value']
+                else:
+                    image_tag += args['value']
+
+        docker_manager = docker.from_env()
+        try:
+            docker_manager.images.pull(repository=image_repo, tag=image_tag)
+        except:
+            pass
+        try:
+            docker_manager.images.get(f"{image_repo}:{image_tag}")
+        except:
+            raise Exception("image not found")
+
+
+def rebuild_container(data):
+    try:
+        pull_container_image(data['platform'], data['options'])
+    except APIError:
+        rebuild_container(data)
+
+    if data['platform']['name'] == "docker":
+        delete_container_task(data['name'], False, False)
+    else:
+        delete_container_task(data['name'], False, True)
+
+    create_container_task(data)
+
+
 def service_action(db, key, data):
     if data['action'] == "stop":
         stop_container_task(data['name'])
         change_ftp_password_task(data['name'])
-    # elif data['action'] == "start":
-    #     tasks.update_container(container.id)
+        set_job_run_in_hub(db, key)
+    elif data['action'] == "start":
+        update_container(data)
+        set_job_run_in_hub(db, key)
     elif data['action'] == "restart":
         update_container(data)
         set_job_run_in_hub(db, key)
-    # elif data['action'] == "rebuild":
-    #     tasks.rebuild_container(container.name, container.platform.name, container.id, get_home_path(container))
+    elif data['action'] == "rebuild":
+        rebuild_container(data)
+        set_job_run_in_hub(db, key)
+
+
+def service_logs(data):
+    docker_manager = docker.from_env()
+    docker_container = docker_manager.containers.get(data['name'])
+    final_logs = ""
+    logs = str(docker_container.logs(timestamps=True, tail=1000).decode("utf-8"))
+    for log_line in logs.splitlines():
+        if log_line.startswith("2022") or log_line.startswith("2023") or log_line.startswith("2024"):
+            log_date = log_line[:30]
+            local_date_timestamp = dateutil.parser.isoparse(log_date).timestamp()
+            zone_ir = pytz.timezone("Asia/Tehran")
+            local_date = zone_ir.localize(datetime.fromtimestamp(local_date_timestamp)).strftime(
+                "[%Y-%m-%d %H:%M:%S]")
+            log_line = local_date + log_line[30:]
+
+        final_logs += log_line
+        final_logs += "\n"
