@@ -522,16 +522,19 @@ def service_logs(name):
     docker_manager = docker.from_env()
     docker_container = docker_manager.containers.get(name)
     final_logs = ""
-    logs = str(docker_container.logs(timestamps=True, tail=1000).decode("utf-8"))
-    for log_line in logs.splitlines():
-        if log_line.startswith("2022") or log_line.startswith("2023") or log_line.startswith("2024"):
-            log_date = log_line[:30]
-            local_date_timestamp = dateutil.parser.isoparse(log_date).timestamp()
-            zone_ir = pytz.timezone("Asia/Tehran")
-            local_date = zone_ir.localize(datetime.fromtimestamp(local_date_timestamp)).strftime(
-                "[%Y-%m-%d %H:%M:%S]")
-            log_line = local_date + log_line[30:]
+    try:
+        logs = str(docker_container.logs(timestamps=True, tail=1000).decode("utf-8"))
+        for log_line in logs.splitlines():
+            if log_line.startswith("2022") or log_line.startswith("2023") or log_line.startswith("2024"):
+                log_date = log_line[:30]
+                local_date_timestamp = dateutil.parser.isoparse(log_date).timestamp()
+                zone_ir = pytz.timezone("Asia/Tehran")
+                local_date = zone_ir.localize(datetime.fromtimestamp(local_date_timestamp)).strftime(
+                    "[%Y-%m-%d %H:%M:%S]")
+                log_line = local_date + log_line[30:]
 
-        final_logs += log_line
-        final_logs += "\n"
+            final_logs += log_line
+            final_logs += "\n"
+    except:
+        pass
     return final_logs
