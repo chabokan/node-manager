@@ -518,9 +518,9 @@ def service_action(db, key, data):
         set_job_run_in_hub(db, key)
 
 
-def service_logs(data):
+def service_logs(name):
     docker_manager = docker.from_env()
-    docker_container = docker_manager.containers.get(data['name'])
+    docker_container = docker_manager.containers.get(name)
     final_logs = ""
     logs = str(docker_container.logs(timestamps=True, tail=1000).decode("utf-8"))
     for log_line in logs.splitlines():
