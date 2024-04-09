@@ -534,3 +534,4 @@ def service_logs(name):
 
         final_logs += log_line
         final_logs += "\n"
+    return final_logs
