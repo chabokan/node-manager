@@ -2,6 +2,7 @@ import datetime
 
 from sqlalchemy.orm import Session
 from models import Setting, ServerUsage, ServerRootJob
+from typing import List
 
 
 def create_setting(session: Session, request: Setting) -> Setting:
@@ -15,7 +16,7 @@ def create_setting(session: Session, request: Setting) -> Setting:
     return db_obj
 
 
-def get_all_settings(session: Session) -> list[Setting]:
+def get_all_settings(session: Session) -> List[Setting]:
     return session.query(Setting).all()
 
 
@@ -36,11 +37,11 @@ def create_server_usage(session: Session, request: ServerUsage) -> ServerUsage:
     return db_obj
 
 
-def get_all_server_usages(session: Session) -> list[ServerUsage]:
+def get_all_server_usages(session: Session) -> List[ServerUsage]:
     return session.query(ServerUsage).all()
 
 
-def get_server_not_run_root_jobs(session: Session) -> list[ServerRootJob]:
+def get_server_not_run_root_jobs(session: Session) -> List[ServerRootJob]:
     return session.query(ServerRootJob).filter(ServerRootJob.run_at.is_(None)).all()
 
 
