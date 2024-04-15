@@ -683,17 +683,17 @@ def cal_all_containers_stats(db):
     else:
         for container_stat in containers_stats:
             container_name = container_stat.split(":")[0]
+            if len(container_name) > 0:
+                cpu_usage = normalize_cpu_usage(container_stat.split(":")[1].split("--")[1].strip(), container_name)
+                ram_usage = normalize_ram_usage(container_stat.split(":")[1].split("--")[0].strip())
+                container_disk_size = get_container_disk_size(container_name, get_home_path(container_name))
+                net_usage = normalize_net_usage(container_stat.split(":")[1].split("--")[2].strip())
+                block_usage = normalize_block_usage(container_stat.split(":")[1].split("--")[3].strip())
 
-            cpu_usage = normalize_cpu_usage(container_stat.split(":")[1].split("--")[1].strip(), container_name)
-            ram_usage = normalize_ram_usage(container_stat.split(":")[1].split("--")[0].strip())
-            container_disk_size = get_container_disk_size(container_name, get_home_path(container_name))
-            net_usage = normalize_net_usage(container_stat.split(":")[1].split("--")[2].strip())
-            block_usage = normalize_block_usage(container_stat.split(":")[1].split("--")[3].strip())
-
-            usage = ServiceUsage(name=container_name, ram=ram_usage, cpu=cpu_usage, read=block_usage['read'],
-                                 write=block_usage['write'], network_rx=net_usage["network_rx"],
-                                 network_tx=net_usage["network_tx"], disk=container_disk_size)
-            data.append(usage)
-            crud.create_bulk_service_usage(db, data)
+                usage = ServiceUsage(name=container_name, ram=ram_usage, cpu=cpu_usage, read=block_usage['read'],
+                                     write=block_usage['write'], network_rx=net_usage["network_rx"],
+                                     network_tx=net_usage["network_tx"], disk=container_disk_size)
+                data.append(usage)
+        crud.create_bulk_service_usage(db, data)
 
     return data
