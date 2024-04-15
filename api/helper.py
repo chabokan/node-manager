@@ -576,12 +576,9 @@ def usage_to_byte(usage):
     return usage
 
 
-def normalize_cpu_usage(cpu_data, container):
+def normalize_cpu_usage(cpu_data):
     cpu_usage = cpu_data.replace("%", "")
     cpu_usage = round(float(cpu_usage) / 100, 1)
-
-    if float(cpu_usage) > container.cpu_limit:
-        cpu_usage = container.cpu_limit
 
     return cpu_usage
 
@@ -609,7 +606,6 @@ def normalize_block_usage(block_data):
 def normalize_ram_usage(ram_data):
     ram_usage = ram_data.split("/")[0]
     ram_usage = usage_to_byte(ram_usage)
-
     return ram_usage
 
 
@@ -684,7 +680,7 @@ def cal_all_containers_stats(db):
         for container_stat in containers_stats:
             container_name = container_stat.split(":")[0]
             if len(container_name) > 0:
-                cpu_usage = normalize_cpu_usage(container_stat.split(":")[1].split("--")[1].strip(), container_name)
+                cpu_usage = normalize_cpu_usage(container_stat.split(":")[1].split("--")[1].strip())
                 ram_usage = normalize_ram_usage(container_stat.split(":")[1].split("--")[0].strip())
                 container_disk_size = get_container_disk_size(container_name, get_home_path(container_name))
                 net_usage = normalize_net_usage(container_stat.split(":")[1].split("--")[2].strip())
