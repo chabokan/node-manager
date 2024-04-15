@@ -606,7 +606,7 @@ def normalize_block_usage(block_data):
 def normalize_ram_usage(ram_data):
     ram_usage = ram_data.split("/")[0]
     ram_usage = usage_to_byte(ram_usage)
-    return ram_usage
+    return ram_usage / 1000
 
 
 def get_service_size(path=os.getcwd()):
