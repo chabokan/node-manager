@@ -14,6 +14,7 @@ from datetime import datetime
 import crud
 from core.config import settings
 from core.db import get_db
+from models import ServiceUsage
 
 
 def get_system_info():
@@ -538,3 +539,162 @@ def service_logs(name):
     except:
         pass
     return final_logs
+
+
+def usage_to_byte(usage):
+    if "MiB" in usage or "MB" in usage:
+        usage = usage.replace("MiB", "")
+        usage = usage.replace("MB", "")
+        usage = float(usage.strip())
+        usage = usage * 1000 * 1000
+
+    elif "GiB" in usage or "GB" in usage:
+        usage = usage.replace("GiB", "")
+        usage = usage.replace("GB", "")
+        usage = float(usage.strip())
+        usage = usage * 1000 * 1000 * 1000
+
+    elif "TB" in usage:
+        usage = usage.replace("TB", "")
+        usage = float(usage.strip())
+        usage = usage * 1000 * 1000 * 1000 * 1000
+
+    elif "kB" in usage:
+        usage = usage.replace("kB", "")
+        usage = float(usage.strip())
+        usage = usage * 1000
+
+    elif "KiB" in usage:
+        usage = usage.replace("KiB", "")
+        usage = float(usage.strip())
+        usage = usage * 1000
+    else:
+        usage = usage.replace("B", "")
+        usage = float(usage.strip())
+        usage = usage
+
+    return usage
+
+
+def normalize_cpu_usage(cpu_data, container):
+    cpu_usage = cpu_data.replace("%", "")
+    cpu_usage = round(float(cpu_usage) / 100, 1)
+
+    if float(cpu_usage) > container.cpu_limit:
+        cpu_usage = container.cpu_limit
+
+    return cpu_usage
+
+
+def normalize_net_usage(net_data):
+    network_rx = net_data.split("/")[0]
+    network_tx = net_data.split("/")[1]
+
+    network_rx = usage_to_byte(network_rx)
+    network_tx = usage_to_byte(network_tx)
+
+    return {"network_rx": network_rx, "network_tx": network_tx}
+
+
+def normalize_block_usage(block_data):
+    read = block_data.split("/")[0]
+    write = block_data.split("/")[1]
+
+    read = usage_to_byte(read)
+    write = usage_to_byte(write)
+
+    return {"read": read, "write": write}
+
+
+def normalize_ram_usage(ram_data):
+    ram_usage = ram_data.split("/")[0]
+    ram_usage = usage_to_byte(ram_usage)
+
+    return ram_usage
+
+
+def get_service_size(path=os.getcwd()):
+    main_path = f'/{path.split("/")[1]}/'
+    final_size = 4
+    try:
+        all_dirs = subprocess.check_output(['duc', 'ls', main_path]).splitlines()
+        dir_sizes = {}
+        for dir_size in all_dirs:
+            split_size_and_name = dir_size.split()
+            dir_sizes[str(split_size_and_name[-1].decode("utf-8"))] = str(split_size_and_name[-2].decode("utf-8"))
+        try:
+            size = dir_sizes[path.replace('/home/', '').replace('/home2/', '').replace('/storage/', '')]
+            if "G" in size:
+                size = size.replace("G", '')
+                final_size = float(size) * 1024 * 1024
+            elif "M" in size:
+                size = size.replace("M", '')
+                final_size = float(size) * 1024
+            else:
+                size = size.replace("K", '')
+                final_size = float(size)
+        except:
+            pass
+    except:
+        pass
+
+    return float(final_size)
+
+
+def get_container_disk_size(container_name, home_path):
+    container_disk_size = os.popen(
+        'docker ps -s --filter "name=' + container_name + '" --format "{{.Size}}"').read()
+
+    container_disk_size = container_disk_size.split(" ")[0]
+    if "GB" in container_disk_size:
+        container_disk_size = container_disk_size.replace("GB", "")
+        container_disk_size = float(container_disk_size.strip())
+        container_disk_size = container_disk_size * 1024 * 1024
+    elif "MB" in container_disk_size:
+        container_disk_size = container_disk_size.replace("MB", "")
+        container_disk_size = float(container_disk_size.strip())
+        container_disk_size = container_disk_size * 1024
+    elif "kB" in container_disk_size:
+        container_disk_size = container_disk_size.replace("kB", "")
+        container_disk_size = float(container_disk_size.strip())
+    else:
+        container_disk_size = container_disk_size.replace("B", "")
+        if container_disk_size:
+            container_disk_size = float(container_disk_size.strip())
+        else:
+            container_disk_size = 0
+
+        if container_disk_size != 0:
+            container_disk_size = round(container_disk_size / 1024)
+
+    container_disk_size = round(container_disk_size + get_service_size(home_path))
+
+    return container_disk_size
+
+
+def cal_all_containers_stats(db):
+    data = []
+    all_usages = os.popen(
+        'docker stats --format "{{.Name}}: {{.MemUsage}}  --  {{.CPUPerc}} --  {{.NetIO}}  -- {{.BlockIO}}" --no-stream').read()
+    containers_stats = all_usages.split("\n")
+
+    if len(containers_stats) < 1:
+        raise Exception("error in monitor services usage")
+    else:
+        for container_stat in containers_stats:
+            container_name = container_stat.split(":")[0]
+
+            cpu_usage = normalize_cpu_usage(container_stat.split(":")[1].split("--")[1].strip(), container_name)
+            ram_usage = normalize_ram_usage(container_stat.split(":")[1].split("--")[0].strip())
+            container_disk_size = get_container_disk_size(container_name, get_home_path(container_name))
+            net_usage = normalize_net_usage(container_stat.split(":")[1].split("--")[2].strip())
+            block_usage = normalize_block_usage(container_stat.split(":")[1].split("--")[3].strip())
+
+            usage = ServiceUsage(name=container_name, ram=ram_usage, cpu=cpu_usage, read=block_usage['read'],
+                                 write=block_usage['write'], network_rx=net_usage["network_rx"],
+                                 network_tx=net_usage["network_tx"], disk=container_disk_size)
+            data.append(usage)
+
+            crud.create_bulk_service_usage(db, data)
+
+    return data

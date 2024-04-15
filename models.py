@@ -27,3 +27,17 @@ class ServerRootJob(Base):
     data = Column(Text)
     run_at = Column(DateTime, nullable=True)
     created = Column(DateTime)
+
+
+class ServiceUsage(Base):
+    __tablename__ = "service_usage"
+    id = Column(Integer, index=True, primary_key=True)
+    name = Column(String)
+    ram = Column(Float)
+    cpu = Column(Float)
+    disk = Column(Float)
+    read = Column(Float)
+    write = Column(Float)
+    network_rx = Column(Float)
+    network_tx = Column(Float)
+    created = Column(DateTime)

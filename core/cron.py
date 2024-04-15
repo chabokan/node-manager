@@ -5,7 +5,7 @@ from fastapi import BackgroundTasks
 from fastapi_restful.tasks import repeat_every
 
 import crud
-from api.helper import get_server_ip, get_system_info
+from api.helper import get_server_ip, get_system_info, cal_all_containers_stats
 from core.db import get_db
 from core.tasks import process_hub_jobs
 from main import app
@@ -60,3 +60,18 @@ def get_jobs_from_hub() -> None:
             "Content-Type": "application/json",
         }
         r = requests.get("http://0.0.0.0/api/v1/jobs/", headers=headers, timeout=15)
+
+
+@app.on_event("startup")
+@repeat_every(seconds=60, raise_exceptions=True)
+def monitor_services_usage() -> None:
+    db = next(get_db())
+    if crud.get_setting(db, "token"):
+        cal_all_containers_stats(db)
+        # server_info = get_system_info()
+        # crud.create_server_usage(db,
+        #                          ServerUsage(
+        #                              ram=server_info['ram']['used'],
+        #                              cpu=server_info['cpu']['usage'],
+        #                              disk=server_info['all_disk_usage']
+        #                          ))

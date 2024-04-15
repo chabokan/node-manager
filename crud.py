@@ -1,7 +1,7 @@
 import datetime
 
 from sqlalchemy.orm import Session
-from models import Setting, ServerUsage, ServerRootJob
+from models import Setting, ServerUsage, ServerRootJob, ServiceUsage
 from typing import List
 
 
@@ -64,3 +64,12 @@ def set_server_root_job_run(session: Session, id) -> ServerRootJob:
     session.commit()
     session.refresh(server_root_job)
     return server_root_job
+
+
+def create_bulk_service_usage(session: Session, service_usages: ServiceUsage) -> ServiceUsage:
+    session.add_all(service_usages)
+    session.commit()
+
+
+def get_single_service_usages(session: Session, request: ServiceUsage) -> List[ServiceUsage]:
+    return session.query(ServiceUsage).filter(ServiceUsage.name == request.name).all()
