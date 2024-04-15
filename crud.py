@@ -71,5 +71,5 @@ def create_bulk_service_usage(session: Session, service_usages: ServiceUsage) ->
     session.commit()
 
 
-def get_single_service_usages(session: Session, request: ServiceUsage) -> List[ServiceUsage]:
-    return session.query(ServiceUsage).filter(ServiceUsage.name == request.name).all()
+def get_single_service_usages(session: Session, name: str) -> List[ServiceUsage]:
+    return session.query(ServiceUsage).filter(ServiceUsage.name == name).all()
