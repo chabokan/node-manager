@@ -637,7 +637,7 @@ def get_service_size(path=os.getcwd()):
     return float(final_size)
 
 
-def get_container_disk_size(container_name, home_path):
+def get_container_disk_size(container_name):
     container_disk_size = os.popen(
         'docker ps -s --filter "name=' + container_name + '" --format "{{.Size}}"').read()
 
@@ -663,7 +663,9 @@ def get_container_disk_size(container_name, home_path):
         if container_disk_size != 0:
             container_disk_size = round(container_disk_size / 1024)
 
-    container_disk_size = round(container_disk_size + get_service_size(home_path))
+    container_disk_size = round(container_disk_size + get_service_size(f"/home/{container_name}/"))
+    container_disk_size += round(get_service_size(f"/home2/{container_name}/"))
+    container_disk_size += round(get_service_size(f"/storage/{container_name}/"))
 
     return container_disk_size
 
@@ -682,7 +684,7 @@ def cal_all_containers_stats(db):
             if len(container_name) > 0:
                 cpu_usage = normalize_cpu_usage(container_stat.split(":")[1].split("--")[1].strip())
                 ram_usage = normalize_ram_usage(container_stat.split(":")[1].split("--")[0].strip())
-                container_disk_size = get_container_disk_size(container_name, get_home_path(container_name))
+                container_disk_size = get_container_disk_size(container_name)
                 net_usage = normalize_net_usage(container_stat.split(":")[1].split("--")[2].strip())
                 block_usage = normalize_block_usage(container_stat.split(":")[1].split("--")[3].strip())
 
