@@ -690,7 +690,8 @@ def cal_all_containers_stats(db):
 
                 usage = ServiceUsage(name=container_name, ram=ram_usage, cpu=cpu_usage, read=block_usage['read'],
                                      write=block_usage['write'], network_rx=net_usage["network_rx"],
-                                     network_tx=net_usage["network_tx"], disk=container_disk_size)
+                                     network_tx=net_usage["network_tx"], disk=container_disk_size,
+                                     created=datetime.now())
                 data.append(usage)
         crud.create_bulk_service_usage(db, data)
 
