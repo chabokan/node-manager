@@ -694,7 +694,6 @@ def cal_all_containers_stats(db):
                                  write=block_usage['write'], network_rx=net_usage["network_rx"],
                                  network_tx=net_usage["network_tx"], disk=container_disk_size)
             data.append(usage)
-
             crud.create_bulk_service_usage(db, data)
 
     return data
