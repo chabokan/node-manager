@@ -68,10 +68,3 @@ def monitor_services_usage() -> None:
     db = next(get_db())
     if crud.get_setting(db, "token"):
         cal_all_containers_stats(db)
-        # server_info = get_system_info()
-        # crud.create_server_usage(db,
-        #                          ServerUsage(
-        #                              ram=server_info['ram']['used'],
-        #                              cpu=server_info['cpu']['usage'],
-        #                              disk=server_info['all_disk_usage']
-        #                          ))
