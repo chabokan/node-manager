@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     DOMAIN: str = "localhost"
 
     PROJECT_NAME: str = "node-manager"
-    SQLALCHEMY_DATABASE_URL: str = "sqlite:///./sql_app.db"
+    SQLALCHEMY_DATABASE_URL: str = "sqlite:///var/manager/sql_app.db"
     STORAGE_PLATFORMS: list = ["minio", "ftp", "nextcloud", "registry", "filerun"]
 
 
