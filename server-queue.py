@@ -42,8 +42,7 @@ for job in jobs:
         data = json.loads(job.data)
         cmd_code = os.system("cd /var/manager/ && docker compose down && rm -rf /var/manager/")
     elif job.name == "debug_on":
-        cmd_code = os.system(
-            "iptables -t filter -F DOCKER-USER && iptables -t filter -F INPUT && iptables -A DOCKER-USER -j RETURN")
+        cmd_code = os.system("bash /var/manager/debug_on.sh")
         if cmd_code == 0:
             set_job_run_in_hub(db, job.key)
             crud.set_server_root_job_run(db, job.id)
@@ -51,7 +50,7 @@ for job in jobs:
             raise Exception(f"error cmd_code: {cmd_code} ")
     elif job.name == "debug_off":
         cmd_code = os.system(
-            "curl -s https://raw.githubusercontent.com/chabokan/server-connector/main/firewall.sh | source")
+            "curl -s https://raw.githubusercontent.com/chabokan/server-connector/main/firewall.sh | bash -s")
         if cmd_code == 0:
             set_job_run_in_hub(db, job.key)
             crud.set_server_root_job_run(db, job.id)
