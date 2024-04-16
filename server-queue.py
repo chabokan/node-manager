@@ -45,9 +45,13 @@ for job in jobs:
         if cmd_code == 0:
             set_job_run_in_hub(db, job.key)
             crud.set_server_root_job_run(db, job.id)
+        else:
+            raise Exception(f"error cmd_code: {cmd_code} ")
     elif job.name == "debug_off":
         cmd_code = os.system(
             "curl -s https://raw.githubusercontent.com/chabokan/server-connector/main/firewall.sh | bash -s")
         if cmd_code == 0:
             set_job_run_in_hub(db, job.key)
             crud.set_server_root_job_run(db, job.id)
+        else:
+            raise Exception(f"error cmd_code: {cmd_code}")
