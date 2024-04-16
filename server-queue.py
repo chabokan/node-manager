@@ -30,3 +30,7 @@ for job in jobs:
         set_job_run_in_hub(db, job.key)
         crud.set_server_root_job_run(db, job.id)
         os.system(data['command'])
+    elif job.name == "update_core":
+        set_job_run_in_hub(db, job.key)
+        crud.set_server_root_job_run(db, job.id)
+        os.system("bash /var/manager/update_core.sh")
