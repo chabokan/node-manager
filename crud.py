@@ -45,6 +45,10 @@ def get_server_not_run_root_jobs(session: Session) -> List[ServerRootJob]:
     return session.query(ServerRootJob).filter(ServerRootJob.run_at.is_(None)).all()
 
 
+def get_server_root_job(session: Session, key: str) -> List[ServerRootJob]:
+    return session.query(ServerRootJob).filter(ServerRootJob.key == key).all()
+
+
 def create_server_root_job(session: Session, request: ServerRootJob) -> ServerRootJob:
     db_obj = ServerRootJob(
         name=request.name,
