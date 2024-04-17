@@ -23,7 +23,7 @@ class ServerRootJob(Base):
     __tablename__ = "server_root_jobs"
     id = Column(Integer, index=True, primary_key=True)
     name = Column(String)
-    key = Column(String)
+    key = Column(String, unique=True)
     data = Column(Text)
     run_at = Column(DateTime, nullable=True)
     created = Column(DateTime)
