@@ -789,7 +789,7 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
     clean_out_of_space_backups(container_name)
 
 
-def normal_restore(data):
+def normal_restore(db, data):
     session = boto3.session.Session()
     s3_client = session.client(
         service_name='s3',
@@ -797,9 +797,10 @@ def normal_restore(data):
         aws_secret_access_key=settings.S3_SECRET_KEY,
         endpoint_url=settings.S3_ENDPOINT_URL,
     )
-    abucket = 'services-backups'
+    abucket = crud.get_setting(db, "technical_name").value
     if data['bucket']:
         abucket = data['bucket']
+
     url = s3_client.generate_presigned_url('get_object', Params={'Bucket': abucket, 'Key': data['object_name']},
                                            ExpiresIn=3600)
     file_name = unquote(url.split("?")[0].split("/")[-1])

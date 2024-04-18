@@ -64,6 +64,6 @@ for job in jobs:
         crud.set_server_root_job_run(db, job.id)
     elif job.name == "restore_backup":
         data = json.loads(job.data)
-        normal_restore(data)
+        normal_restore(db, data)
         set_job_run_in_hub(db, job.key)
         crud.set_server_root_job_run(db, job.id)
