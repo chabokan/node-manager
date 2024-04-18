@@ -51,4 +51,4 @@ async def backups(name, db=Depends(get_db)):
     # except:
     #     pass
 
-    return {"success": True, "backups": objects}
+    return {"success": True, "backups": objects.reverse()}
