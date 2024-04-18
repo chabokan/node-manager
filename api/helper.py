@@ -777,7 +777,7 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
 
         if size != 0:
             try:
-                s3_client.upload_file(backup_path, 'services-backups', object_name)
+                s3_client.upload_file(backup_path, crud.get_setting(db, "technical_name").value, object_name)
             except:
                 raise Exception("can't upload backup file")
             finally:
