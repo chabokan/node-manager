@@ -744,7 +744,9 @@ def clean_out_of_space_backups(container_name):
 def create_backup_task(db, container_name, platform_name, backup_name=None):
     data = {
         "name": container_name,
-        "platform": platform_name,
+        "platform": {
+            "name": platform_name
+        },
     }
     if not os.path.exists(get_home_path(data)):
         os.mkdir(get_home_path(data))
