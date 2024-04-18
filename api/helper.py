@@ -805,7 +805,7 @@ def normal_restore(db, data):
                                            ExpiresIn=3600)
     file_name = unquote(url.split("?")[0].split("/")[-1])
     urllib.request.urlretrieve(url, file_name)
-    service_root_path = get_home_path(data['name'])
+    service_root_path = get_home_path(data)
     os.system(f"rm -rf {service_root_path}")
     os.mkdir(service_root_path)
 
