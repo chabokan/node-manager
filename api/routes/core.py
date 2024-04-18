@@ -38,9 +38,14 @@ async def connect(token: str, db=Depends(get_db)):
                       data=json.dumps(data))
     if r.status_code == 200:
         crud.create_setting(db, Setting(key="token", value=token))
+        crud.create_setting(db, Setting(key="technical_name", value=r.json()['technical_name']))
+        crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
+        crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
+        crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
+
         return {"success": True, "message": "node connected to chabokan successfully."}
     else:
-        return {"success": False, "message": "some problem.", "r": r.json()}
+        return {"success": False, "message": "some problem."}
 
 
 @router.get("/jobs/")

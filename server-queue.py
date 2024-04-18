@@ -3,7 +3,7 @@ import os
 import subprocess
 
 import crud
-from api.helper import set_job_run_in_hub, create_service, delete_service, service_action
+from api.helper import set_job_run_in_hub, create_service, delete_service, service_action, create_backup_task
 from core.db import get_db
 
 db = next(get_db())
@@ -56,3 +56,6 @@ for job in jobs:
             crud.set_server_root_job_run(db, job.id)
         else:
             raise Exception(f"error cmd_code: {cmd_code}")
+    elif job.name == "create_backup":
+        data = json.loads(job.data)
+        create_backup_task(db, data['name'], data['platform'])

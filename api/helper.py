@@ -2,7 +2,9 @@ import json
 import os
 import string
 import subprocess
+from random import randint
 
+import boto3
 import dateutil
 import docker
 import psutil
@@ -696,3 +698,87 @@ def cal_all_containers_stats(db):
         crud.create_bulk_service_usage(db, data)
 
     return data
+
+
+def get_size(path=os.getcwd()):
+    try:
+        size = subprocess.check_output(['du', '-s', path], timeout=5).split()[0].decode('utf-8')
+        if size == '0':
+            size = '4'
+    except:
+        size = '3'
+    return float(size)
+
+
+def create_backup_archive_file(container_name, home_path, main_backup_name=None):
+    location = home_path + "/"
+    backup_location = f"/backups/"
+    backup_name = main_backup_name
+    if not main_backup_name:
+        backup_name = container_name + "_" + str(datetime.date(datetime.now())) + str(
+            randint(0, 999999)) + ".tar.gz"
+    excludes_list = [
+        "app/vendor",
+        "app/node_modules",
+        "app/venv",
+        "app/bower_components",
+        "app/.next",
+        "app/.nuxt",
+        "site-packages",
+        "bin/",
+    ]
+    excludes = ""
+    for exclude_item in excludes_list:
+        excludes += f" --exclude='{exclude_item}'"
+
+    os.system(
+        f'cd {location} && tar --use-compress-program="pigz --best --recursive" -cf {backup_name} {excludes} $(ls -A)')
+    os.system(f"cd {location} && mv {backup_name} {backup_location}")
+    return [backup_name, backup_location]
+
+
+def clean_out_of_space_backups(container_name):
+    pass
+
+
+def create_backup_task(db, container_name, platform_name, backup_name=None):
+    data = {
+        "name": container_name,
+        "platform": platform_name,
+    }
+    if not os.path.exists(get_home_path(data)):
+        os.mkdir(get_home_path(data))
+
+    try:
+        disk_usage = crud.get_single_service_usages_last(db, container_name).disk
+    except:
+        disk_usage = get_size(get_home_path(data))
+
+    disk_usage_gb = (disk_usage / 1024) / 1024
+    if disk_usage > 4 and disk_usage_gb <= 5:
+        [backup_name, backup_location] = create_backup_archive_file(container_name,
+                                                                    get_home_path(data),
+                                                                    backup_name)
+        session = boto3.session.Session()
+        s3_client = session.client(
+            service_name='s3',
+            endpoint_url=crud.get_setting(db, "backup_server_url"),
+            aws_access_key_id=crud.get_setting(db, "backup_server_access_key"),
+            aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key"),
+        )
+        object_name = f"{container_name}/{backup_name}"
+        backup_path = backup_location + backup_name
+        try:
+            size = subprocess.check_output(['du', '-s', backup_path]).split()[0].decode('utf-8')
+        except:
+            size = 0
+
+        if size != 0:
+            try:
+                s3_client.upload_file(backup_path, 'services-backups', object_name)
+            except:
+                raise Exception("can't upload backup file")
+            finally:
+                os.remove(backup_path)
+
+    clean_out_of_space_backups(container_name)
