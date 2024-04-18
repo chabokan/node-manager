@@ -6,6 +6,6 @@ docker compose build web
 docker compose up -d
 docker compose restart web
 
-pip install -r /app/requirements.txt
+pip install -r requirements.txt
 
 service cron restart
