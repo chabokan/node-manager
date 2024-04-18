@@ -27,11 +27,11 @@ async def backups(name, db=Depends(get_db)):
         session = boto3.session.Session()
         s3_client = session.client(
             service_name='s3',
-            endpoint_url=crud.get_setting(db, "backup_server_url"),
-            aws_access_key_id=crud.get_setting(db, "backup_server_access_key"),
-            aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key"),
+            endpoint_url=crud.get_setting(db, "backup_server_url").value,
+            aws_access_key_id=crud.get_setting(db, "backup_server_access_key").value,
+            aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key").value,
         )
-        all_backup_objects = s3_client.list_objects(Bucket=crud.get_setting(db, "technical_name"), Prefix=f"{name}/")[
+        all_backup_objects = s3_client.list_objects(Bucket=crud.get_setting(db, "technical_name").value, Prefix=f"{name}/")[
             'Contents']
         for ob in all_backup_objects:
             if ob['Key'].startswith(f"{name}/"):

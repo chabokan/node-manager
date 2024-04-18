@@ -762,9 +762,9 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
         session = boto3.session.Session()
         s3_client = session.client(
             service_name='s3',
-            endpoint_url=crud.get_setting(db, "backup_server_url"),
-            aws_access_key_id=crud.get_setting(db, "backup_server_access_key"),
-            aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key"),
+            endpoint_url=crud.get_setting(db, "backup_server_url").value,
+            aws_access_key_id=crud.get_setting(db, "backup_server_access_key").value,
+            aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key").value,
         )
         object_name = f"{container_name}/{backup_name}"
         backup_path = backup_location + backup_name
