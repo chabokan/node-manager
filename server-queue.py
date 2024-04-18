@@ -3,7 +3,8 @@ import os
 import subprocess
 
 import crud
-from api.helper import set_job_run_in_hub, create_service, delete_service, service_action, create_backup_task
+from api.helper import set_job_run_in_hub, create_service, delete_service, service_action, create_backup_task, \
+    normal_restore
 from core.db import get_db
 
 db = next(get_db())
@@ -59,5 +60,10 @@ for job in jobs:
     elif job.name == "create_backup":
         data = json.loads(job.data)
         create_backup_task(db, data['name'], data['platform'])
+        set_job_run_in_hub(db, job.key)
+        crud.set_server_root_job_run(db, job.id)
+    elif job.name == "restore_backup":
+        data = json.loads(job.data)
+        normal_restore(data)
         set_job_run_in_hub(db, job.key)
         crud.set_server_root_job_run(db, job.id)

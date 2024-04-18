@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import string
 import subprocess
 from random import randint
@@ -17,6 +18,8 @@ import crud
 from core.config import settings
 from core.db import get_db
 from models import ServiceUsage
+from urllib.parse import unquote
+import urllib.request
 
 
 def get_system_info():
@@ -784,3 +787,38 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
                 os.remove(backup_path)
 
     clean_out_of_space_backups(container_name)
+
+
+def normal_restore(data):
+    session = boto3.session.Session()
+    s3_client = session.client(
+        service_name='s3',
+        aws_access_key_id=settings.S3_ACCESS_KEY,
+        aws_secret_access_key=settings.S3_SECRET_KEY,
+        endpoint_url=settings.S3_ENDPOINT_URL,
+    )
+    abucket = 'services-backups'
+    if data['bucket']:
+        abucket = data['bucket']
+    url = s3_client.generate_presigned_url('get_object', Params={'Bucket': abucket, 'Key': data['object_name']},
+                                           ExpiresIn=3600)
+    file_name = unquote(url.split("?")[0].split("/")[-1])
+    urllib.request.urlretrieve(url, file_name)
+    service_root_path = get_home_path(data['name'])
+    os.system(f"rm -rf {service_root_path}")
+    os.mkdir(service_root_path)
+
+    try:
+        # move backup file file to service root
+        shutil.move(file_name, service_root_path)
+        os.system(f"cd {service_root_path} && pigz -dc {file_name} | tar xf -")
+        os.system(f"cd {service_root_path} && rm -rf {file_name}")
+        if os.path.exists(service_root_path + "home"):
+            os.system(f"cd {service_root_path}home/{data['name']} && mv $(ls -A) {service_root_path}")
+            os.system(f"cd {service_root_path} && rm -rf home")
+
+    finally:
+        if os.path.exists(file_name):
+            os.system(f"rm -rf {file_name}")
+
+    rebuild_container(data)
