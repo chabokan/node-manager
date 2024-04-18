@@ -59,3 +59,5 @@ for job in jobs:
     elif job.name == "create_backup":
         data = json.loads(job.data)
         create_backup_task(db, data['name'], data['platform'])
+        set_job_run_in_hub(db, job.key)
+        crud.set_server_root_job_run(db, job.id)
