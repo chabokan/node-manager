@@ -798,7 +798,7 @@ def normal_restore(db, data):
         aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key").value,
     )
     abucket = crud.get_setting(db, "technical_name").value
-    if data['bucket']:
+    if "bucket" in data:
         abucket = data['bucket']
 
     url = s3_client.generate_presigned_url('get_object', Params={'Bucket': abucket, 'Key': data['object_name']},
