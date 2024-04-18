@@ -52,3 +52,20 @@ async def backups(name, db=Depends(get_db)):
     #     pass
 
     return {"success": True, "backups": objects}
+
+
+@router.post("/{name}/backups/get/")
+async def get_backups(name, object_name, db=Depends(get_db)):
+    session = boto3.session.Session()
+    s3_client = session.client(
+        service_name='s3',
+        endpoint_url=crud.get_setting(db, "backup_server_url").value,
+        aws_access_key_id=crud.get_setting(db, "backup_server_access_key").value,
+        aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key").value,
+    )
+    url = s3_client.generate_presigned_url('get_object',
+                                           Params={'Bucket': crud.get_setting(db, "technical_name").value,
+                                                   'Key': object_name},
+                                           ExpiresIn=36000)
+
+    return {"success": True, "url": url}
