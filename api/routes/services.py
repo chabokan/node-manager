@@ -40,13 +40,14 @@ async def backups(name, db=Depends(get_db)):
                 container_backup_objects.append(ob)
 
         for container_backup_object in container_backup_objects:
-            objects.append({
-                "object": container_backup_object['Key'],
-                "size": round(container_backup_object['Size'] / 1024, 1),
-                "status": "active",
-                "updated": container_backup_object['LastModified'],
-                "created": container_backup_object['LastModified'],
-            })
+            if not container_backup_object['Key'].endswith("/"):
+                objects.append({
+                    "object": container_backup_object['Key'],
+                    "size": round(container_backup_object['Size'] / 1024, 1),
+                    "status": "active",
+                    "updated": container_backup_object['LastModified'],
+                    "created": container_backup_object['LastModified'],
+                })
     # except:
     #     pass
 
