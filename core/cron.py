@@ -9,7 +9,7 @@ from api.helper import get_server_ip, get_system_info, cal_all_containers_stats
 from core.db import get_db
 from core.tasks import process_hub_jobs
 from main import app
-from models import ServerUsage
+from models import ServerUsage, Setting
 
 
 @app.on_event("startup")
@@ -35,6 +35,10 @@ def server_sync() -> None:
         }
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
                           data=json.dumps(data), timeout=15)
+        if r.status_code == 200:
+            crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
+            crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
+            crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
 
 
 @app.on_event("startup")
