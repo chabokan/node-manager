@@ -36,9 +36,10 @@ def server_sync() -> None:
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
                           data=json.dumps(data), timeout=15)
         if r.status_code == 200:
-            crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
-            crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
-            crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
+            pass
+            # crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
+            # crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
+            # crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
 
 
 @app.on_event("startup")
