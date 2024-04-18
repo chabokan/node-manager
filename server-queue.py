@@ -32,7 +32,7 @@ for job in jobs:
         crud.set_server_root_job_run(db, job.id)
         os.system(data['command'])
     elif job.name == "update_core":
-        cmd_code = os.system("bash /var/manager/update_core.sh")
+        cmd_code = os.system("bash /var/ch-manager/update_core.sh")
         if cmd_code == 0:
             set_job_run_in_hub(db, job.key)
             crud.set_server_root_job_run(db, job.id)
@@ -40,9 +40,9 @@ for job in jobs:
         set_job_run_in_hub(db, job.key)
         crud.set_server_root_job_run(db, job.id)
         data = json.loads(job.data)
-        cmd_code = os.system("cd /var/manager/ && docker compose down && rm -rf /var/manager/")
+        cmd_code = os.system("cd /var/ch-manager/ && docker compose down")
     elif job.name == "debug_on":
-        cmd_code = os.system("bash /var/manager/debug_on.sh")
+        cmd_code = os.system("bash /var/ch-manager/debug_on.sh")
         if cmd_code == 0:
             set_job_run_in_hub(db, job.key)
             crud.set_server_root_job_run(db, job.id)

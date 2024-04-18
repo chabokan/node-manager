@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd /var/manager
+cd /var/ch-manager
 sudo git reset --hard HEAD && sudo git pull
 docker compose build web
 docker compose up -d
