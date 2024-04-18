@@ -793,9 +793,9 @@ def normal_restore(db, data):
     session = boto3.session.Session()
     s3_client = session.client(
         service_name='s3',
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET_KEY,
-        endpoint_url=settings.S3_ENDPOINT_URL,
+        endpoint_url=crud.get_setting(db, "backup_server_url").value,
+        aws_access_key_id=crud.get_setting(db, "backup_server_access_key").value,
+        aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key").value,
     )
     abucket = crud.get_setting(db, "technical_name").value
     if data['bucket']:
