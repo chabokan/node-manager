@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 
@@ -22,10 +23,13 @@ def process_hub_jobs(jobs):
                                        'host_command', 'delete_core', 'debug_on', 'debug_off', 'create_backup',
                                        'restore_backup']:
 
+                run_at = dateutil.parser.parse(pending_job['run_at'])
+                if not run_at:
+                    run_at = datetime.datetime.now()
                 if not crud.get_server_root_job(db, pending_job['key']):
                     crud.create_server_root_job(db, ServerRootJob(name=pending_job['name'], key=pending_job['key'],
                                                                   data=json.dumps(pending_job['data']),
-                                                                  run_at=dateutil.parser.parse(pending_job['run_at'])))
+                                                                  run_at=run_at))
                 else:
                     server_root_job = crud.get_server_root_job(db, pending_job['key'])
                     if server_root_job.completed_at:
