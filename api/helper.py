@@ -223,9 +223,9 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
 
     cpu_count = os.cpu_count()
     db = next(get_db())
-    all_usage = crud.get_all_server_usages(db)
-    all_ram = all_usage[0].ram
-    all_cpu = all_usage[0].cpu
+    server_info = get_system_info()
+    all_ram = server_info['ram']['total']
+    all_cpu = server_info['cpu']['count']
     if limit:
         command += f'-m {ram}g --cpus="{cpu}" '
     else:
@@ -249,6 +249,13 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
     run_response['final_command'] = final_command
 
     return run_response
+
+
+def limit_container_task(container_name, ram_limit, cpu_limit):
+    command = "docker update "
+    command += f'-m {ram_limit}g --cpus="{cpu_limit}" '
+    command += f'{container_name}'
+    os.system(command)
 
 
 def create_container_task(data):
@@ -291,7 +298,7 @@ def create_container_task(data):
         if run_response['response'] != 0 and run_response['response'] != 32000:
             raise Exception("some problem in docker run command")
 
-    #     tasks.limit_container(container.id, schedule=container.platform.build_time * 60)
+        limit_container_task(main_container_name, data['ram_limit'], data['cpu_limit'])
     #
     # tasks.rebuild_firewall_rules(container.name)
 
@@ -458,7 +465,7 @@ def update_container(data):
                                          home_path=home_path)
             if run_response['response'] != 0 and run_response['response'] != 32000:
                 raise Exception("some problem in docker run command")
-            # tasks.limit_container(container.id)
+            limit_container_task(container_name, data['ram_limit'], data['cpu_limit'])
         else:
             create_container_task(data)
 
@@ -509,20 +516,25 @@ def rebuild_container(data):
 
 
 def service_action(db, key, data):
+    job_complete = False
     if data['action'] == "stop":
         stop_container_task(data['name'])
         change_ftp_password_task(data['name'])
-        set_job_run_in_hub(db, key)
+        job_complete = True
     elif data['action'] == "start":
         update_container(data)
-        set_job_run_in_hub(db, key)
+        job_complete = True
     elif data['action'] == "restart":
         update_container(data)
-        set_job_run_in_hub(db, key)
+        job_complete = True
     elif data['action'] == "rebuild":
         rebuild_container(data)
-        set_job_run_in_hub(db, key)
+        job_complete = True
+    elif data['action'] == "silent-update":
+        limit_container_task(data['name'], data['ram_limit'], data['cpu_limit'])
+        job_complete = True
 
+    return job_complete
 
 def service_logs(name):
     final_logs = ""

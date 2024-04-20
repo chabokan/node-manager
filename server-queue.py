@@ -25,8 +25,11 @@ for job in jobs:
         crud.set_server_root_job_run(db, job.id)
     elif job.name == "service_action":
         data = json.loads(job.data)
-        service_action(db, job.key, data)
-        crud.set_server_root_job_run(db, job.id)
+        job_complete = service_action(db, job.key, data)
+        if job_complete:
+            set_job_run_in_hub(db, job.key)
+            crud.set_server_root_job_run(db, job.id)
+
     elif job.name == "host_command":
         data = json.loads(job.data)
         set_job_run_in_hub(db, job.key)
