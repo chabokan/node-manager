@@ -15,7 +15,7 @@ sentry_sdk.init(
 
 app = FastAPI()
 app.include_router(api_router, prefix=settings.API_V1_STR)
-models.Base.metadata.create_all(engine)
+# models.Base.metadata.create_all(engine)
 
 # it should be here for running cron jobs
 import core.cron
