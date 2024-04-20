@@ -5,7 +5,7 @@ import subprocess
 
 import crud
 from api.helper import set_job_run_in_hub, create_service, delete_service, service_action, create_backup_task, \
-    normal_restore
+    normal_restore, limit_container_task
 from core.db import get_db
 
 db = next(get_db())
@@ -71,4 +71,8 @@ for job in jobs:
             data = json.loads(job.data)
             normal_restore(db, data)
             set_job_run_in_hub(db, job.key)
+            crud.set_server_root_job_run(db, job.id)
+        elif job.name == "limit_container":
+            data = json.loads(job.data)
+            limit_container_task(data)
             crud.set_server_root_job_run(db, job.id)

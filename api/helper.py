@@ -12,12 +12,12 @@ import psutil
 import pytz
 import requests
 from docker.errors import APIError
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import crud
 from core.config import settings
 from core.db import get_db
-from models import ServiceUsage
+from models import ServiceUsage, ServerRootJob
 from urllib.parse import unquote
 import urllib.request
 
@@ -251,10 +251,10 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
     return run_response
 
 
-def limit_container_task(container_name, ram_limit, cpu_limit):
+def limit_container_task(data):
     command = "docker update "
-    command += f'-m {ram_limit}g --cpus="{cpu_limit}" '
-    command += f'{container_name}'
+    command += f'-m {data["ram_limit"]}g --cpus="{data["cpu_limit"]}" '
+    command += f'{data["container_name"]}'
     os.system(command)
 
 
@@ -298,7 +298,7 @@ def create_container_task(data):
         if run_response['response'] != 0 and run_response['response'] != 32000:
             raise Exception("some problem in docker run command")
 
-        limit_container_task(main_container_name, data['ram_limit'], data['cpu_limit'])
+        limit_container_job(main_container_name, data['ram_limit'], data['cpu_limit'])
     #
     # tasks.rebuild_firewall_rules(container.name)
 
@@ -465,7 +465,7 @@ def update_container(data):
                                          home_path=home_path)
             if run_response['response'] != 0 and run_response['response'] != 32000:
                 raise Exception("some problem in docker run command")
-            limit_container_task(container_name, data['ram_limit'], data['cpu_limit'])
+            limit_container_job(container_name, data['ram_limit'], data['cpu_limit'])
         else:
             create_container_task(data)
 
@@ -515,6 +515,27 @@ def rebuild_container(data):
     create_container_task(data)
 
 
+def random_job_key(count):
+    a_pass = get_pass(count)
+    db = next(get_db())
+    if crud.get_server_root_job(db, a_pass):
+        return random_job_key(count)
+
+    return a_pass
+
+
+def limit_container_job(container_name, ram_limit, cpu_limit):
+    db = next(get_db())
+    data = {
+        "container_name": container_name,
+        "ram_limit": ram_limit,
+        "cpu_limit": cpu_limit
+    }
+    crud.create_server_root_job(db, ServerRootJob(name="limit_container", key=random_job_key(64),
+                                                  data=json.dumps(data),
+                                                  run_at=datetime.now() + timedelta(seconds=300)))
+
+
 def service_action(db, key, data):
     job_complete = False
     if data['action'] == "stop":
@@ -531,10 +552,11 @@ def service_action(db, key, data):
         rebuild_container(data)
         job_complete = True
     elif data['action'] == "silent-update":
-        limit_container_task(data['name'], data['ram_limit'], data['cpu_limit'])
+        limit_container_job(data['name'], data['ram_limit'], data['cpu_limit'])
         job_complete = True
 
     return job_complete
+
 
 def service_logs(name):
     final_logs = ""
