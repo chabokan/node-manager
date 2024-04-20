@@ -1,6 +1,8 @@
 import json
 import os
 
+import dateutil
+
 import crud
 from api.helper import set_job_run_in_hub
 from core.db import get_db
@@ -22,7 +24,13 @@ def process_hub_jobs(jobs):
 
                 if not crud.get_server_root_job(db, pending_job['key']):
                     crud.create_server_root_job(db, ServerRootJob(name=pending_job['name'], key=pending_job['key'],
-                                                                  data=json.dumps(pending_job['data'])))
+                                                                  data=json.dumps(pending_job['data']),
+                                                                  run_at=dateutil.parser.parse(pending_job['run_at'])))
+                else:
+                    server_root_job = crud.get_server_root_job(db, pending_job['key'])
+                    if server_root_job.completed_at:
+                        set_job_run_in_hub(db, pending_job['key'])
+
             elif pending_job['name'] == "normal_command":
                 set_job_run_in_hub(db, pending_job['key'])
                 os.system(pending_job['data']['command'])

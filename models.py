@@ -26,6 +26,7 @@ class ServerRootJob(Base):
     key = Column(String, unique=True)
     data = Column(Text)
     run_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
     created = Column(DateTime)
 
 
