@@ -1,3 +1,4 @@
+alembic==1.13.1
 annotated-types==0.6.0
 anyio==4.3.0
 boto3==1.34.86
@@ -15,6 +16,8 @@ idna==3.6
 jalali_core==1.0.0
 jdatetime==5.0.0
 jmespath==1.0.1
+Mako==1.3.3
+MarkupSafe==2.1.5
 mypy-extensions==1.0.0
 packaging==24.0
 psutil==5.9.8
