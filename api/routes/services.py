@@ -20,11 +20,10 @@ async def logs(name, db=Depends(get_db)):
 
 
 @router.get("/{name}/backups/")
-async def backups(name, db=Depends(get_db)):
+async def backups(name: str, db=Depends(get_db)):
     container_backup_objects = []
     objects = []
-    # try:
-    if True:
+    try:
         session = boto3.session.Session()
         s3_client = session.client(
             service_name='s3',
@@ -48,14 +47,14 @@ async def backups(name, db=Depends(get_db)):
                     "updated": container_backup_object['LastModified'],
                     "created": container_backup_object['LastModified'],
                 })
-    # except:
-    #     pass
+    except:
+        pass
 
     return {"success": True, "backups": objects}
 
 
 @router.post("/{name}/backups/get/")
-async def get_backups(name, object_name, db=Depends(get_db)):
+async def get_backups(name: str, object_name: str, db=Depends(get_db)):
     session = boto3.session.Session()
     s3_client = session.client(
         service_name='s3',

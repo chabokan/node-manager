@@ -525,10 +525,10 @@ def service_action(db, key, data):
 
 
 def service_logs(name):
-    docker_manager = docker.from_env()
-    docker_container = docker_manager.containers.get(name)
     final_logs = ""
     try:
+        docker_manager = docker.from_env()
+        docker_container = docker_manager.containers.get(name)
         logs = str(docker_container.logs(timestamps=True, tail=1000).decode("utf-8"))
         for log_line in logs.splitlines():
             if log_line.startswith("2022") or log_line.startswith("2023") or log_line.startswith("2024"):
