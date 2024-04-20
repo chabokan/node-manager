@@ -8,4 +8,6 @@ docker compose restart web
 
 pip install -r requirements.txt
 
+alembic upgrade head
+
 service cron restart
