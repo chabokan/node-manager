@@ -24,7 +24,5 @@ else
   fi
 fi
 
-alembic upgrade head
-sleep 15
 echo "Run uvicorn Server"
 uvicorn "main:app" --host 0.0.0.0 --port 80 --workers 1 --log-level info --reload
