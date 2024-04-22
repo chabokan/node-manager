@@ -1,6 +1,6 @@
 services:
   web:
-    build: .
+    image: docker.chabokan/chabokan/node-manager
     ports:
       - "8123:80"
     volumes:
