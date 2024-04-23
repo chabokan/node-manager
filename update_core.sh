@@ -2,12 +2,12 @@
 
 cd /var/ch-manager
 sudo git reset --hard HEAD && sudo git pull
+alembic upgrade head
+
 docker compose build web
 docker compose up -d
 docker compose restart web
 
 pip install -r requirements.txt
-
-alembic upgrade head
 
 service cron restart
