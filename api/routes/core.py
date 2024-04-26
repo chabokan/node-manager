@@ -45,7 +45,7 @@ async def connect(token: str, db=Depends(get_db)):
 
         return {"success": True, "message": "node connected to chabokan successfully."}
     else:
-        return {"success": False, "message": "some problem."}
+        return {"success": False, "status": r.status_code, "response": r.json()}
 
 
 @router.get("/jobs/")
