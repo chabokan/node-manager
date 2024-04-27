@@ -11,9 +11,9 @@ jobs = crud.get_server_not_completed_and_pending_root_jobs(db)
 
 for job in jobs:
     try:
-        job.locked = True
-        db.commit()
         if job.run_at <= datetime.datetime.now():
+            job.locked = True
+            db.commit()
             if job.name == "restart_server":
                 crud.set_server_root_job_run(db, job.id)
                 set_job_run_in_hub(db, job.key)
