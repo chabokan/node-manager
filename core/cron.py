@@ -1,5 +1,6 @@
 import json
 import datetime
+import os
 
 import requests
 from fastapi import BackgroundTasks
@@ -86,3 +87,15 @@ def reset_locked_root_jobs() -> None:
             job.locked = False
             job.locked_at = None
             db.commit()
+
+
+@app.on_event("startup")
+def start_containers() -> None:
+    db = next(get_db())
+    data = {"token": crud.get_setting(db, "token").value}
+    headers = {"Content-Type": "application/json", }
+    r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-services/", headers=headers,
+                      data=json.dumps(data), timeout=15)
+    if r.status_code == 200:
+        for service in r.json()['data']:
+            os.system(f"docker start {service['main_name']}")
