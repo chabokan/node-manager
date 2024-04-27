@@ -41,8 +41,9 @@ def get_all_server_usages(session: Session) -> List[ServerUsage]:
     return session.query(ServerUsage).all()
 
 
-def get_server_not_completed_root_jobs(session: Session) -> List[ServerRootJob]:
-    return session.query(ServerRootJob).filter(ServerRootJob.completed_at.is_(None)).all()
+def get_server_not_completed_and_pending_root_jobs(session: Session) -> List[ServerRootJob]:
+    return session.query(ServerRootJob).filter(ServerRootJob.completed_at.is_(None),
+                                               ServerRootJob.status == "pending").all()
 
 
 def get_server_root_job(session: Session, key: str) -> ServerRootJob:
@@ -55,6 +56,8 @@ def create_server_root_job(session: Session, request: ServerRootJob) -> ServerRo
         key=request.key,
         data=request.data,
         run_at=request.run_at,
+        run_count=0,
+        status="pending",
         created=datetime.datetime.now()
     )
     session.add(db_obj)
@@ -66,6 +69,11 @@ def create_server_root_job(session: Session, request: ServerRootJob) -> ServerRo
 def set_server_root_job_run(session: Session, id) -> ServerRootJob:
     server_root_job = session.query(ServerRootJob).filter(ServerRootJob.id == id).first()
     server_root_job.completed_at = datetime.datetime.now()
+    if server_root_job.run_count:
+        server_root_job.run_count += 1
+    else:
+        server_root_job.run_count = 1
+    server_root_job.status = "success"
     session.commit()
     session.refresh(server_root_job)
     return server_root_job
