@@ -98,4 +98,7 @@ def start_containers() -> None:
                       data=json.dumps(data), timeout=15)
     if r.status_code == 200:
         for service in r.json()['data']:
-            os.system(f"docker start {service['main_name']}")
+            if service['status'] == "on":
+                os.system(f"docker start {service['main_name']}")
+            elif service['status'] == "off":
+                os.system(f"docker stop {service['main_name']}")
