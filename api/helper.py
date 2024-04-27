@@ -84,11 +84,11 @@ def byte_to_gb(value):
     return round(value / 1024 / 1024 / 1024, 2)
 
 
-def set_job_run_in_hub(db, key):
+def set_job_run_in_hub(db, key, status="success"):
     data = {
         "token": crud.get_setting(db, "token").value,
         "key": key,
-        "status": "success"
+        "status": status
     }
     headers = {
         "Content-Type": "application/json",

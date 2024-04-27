@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean
 
 from core.db import Base
 
@@ -28,6 +28,7 @@ class ServerRootJob(Base):
     data = Column(Text)
     status = Column(String, default="pending")
     run_at = Column(DateTime, nullable=True)
+    locked = Column(Boolean, default=False)
     completed_at = Column(DateTime, nullable=True)
     created = Column(DateTime)
 
