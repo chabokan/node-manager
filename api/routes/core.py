@@ -54,7 +54,7 @@ async def jobs(background_tasks: BackgroundTasks, db=Depends(get_db)):
         data = {"token": crud.get_setting(db, "token").value}
         headers = {"Content-Type": "application/json", }
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-jobs/", headers=headers,
-                          data=json.dumps(data), timeout=15)
+                          data=json.dumps(data), timeout=40)
         if r.status_code == 200:
             process_jobs(db, r.json()['data'])
             # background_tasks.add_task(process_hub_jobs, jobs=r.json()['data'])

@@ -95,7 +95,7 @@ def start_containers() -> None:
     data = {"token": crud.get_setting(db, "token").value}
     headers = {"Content-Type": "application/json", }
     r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-services/", headers=headers,
-                      data=json.dumps(data), timeout=15)
+                      data=json.dumps(data), timeout=40)
     if r.status_code == 200:
         for service in r.json()['data']:
             if service['status'] == "on":
