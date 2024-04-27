@@ -824,19 +824,7 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
 
 
 def normal_restore(db, data):
-    session = boto3.session.Session()
-    s3_client = session.client(
-        service_name='s3',
-        endpoint_url=crud.get_setting(db, "backup_server_url").value,
-        aws_access_key_id=crud.get_setting(db, "backup_server_access_key").value,
-        aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key").value,
-    )
-    abucket = crud.get_setting(db, "technical_name").value
-    if "bucket" in data:
-        abucket = data['bucket']
-
-    url = s3_client.generate_presigned_url('get_object', Params={'Bucket': abucket, 'Key': data['object_name']},
-                                           ExpiresIn=3600)
+    url = data['url']
     file_name = unquote(url.split("?")[0].split("/")[-1])
     urllib.request.urlretrieve(url, file_name)
     service_root_path = get_home_path(data)
