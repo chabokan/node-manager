@@ -56,7 +56,7 @@ async def jobs(background_tasks: BackgroundTasks, db=Depends(get_db)):
         r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-jobs/", headers=headers,
                           data=json.dumps(data), timeout=15)
         if r.status_code == 200:
-            process_jobs(db, jobs)
+            process_jobs(db, r.json()['data'])
             # background_tasks.add_task(process_hub_jobs, jobs=r.json()['data'])
 
         return {"success": True}
