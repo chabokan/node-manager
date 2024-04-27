@@ -29,6 +29,7 @@ class ServerRootJob(Base):
     status = Column(String, default="pending")
     run_at = Column(DateTime, nullable=True)
     locked = Column(Boolean, default=False)
+    locked_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     created = Column(DateTime)
 

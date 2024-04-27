@@ -41,6 +41,11 @@ def get_all_server_usages(session: Session) -> List[ServerUsage]:
     return session.query(ServerUsage).all()
 
 
+def get_server_locked_root_jobs(session: Session) -> List[ServerRootJob]:
+    return session.query(ServerRootJob).filter(ServerRootJob.completed_at.is_(None),
+                                               ServerRootJob.status == "pending", ServerRootJob.locked == True).all()
+
+
 def get_server_not_completed_and_pending_root_jobs(session: Session) -> List[ServerRootJob]:
     return session.query(ServerRootJob).filter(ServerRootJob.completed_at.is_(None),
                                                ServerRootJob.status == "pending", ServerRootJob.locked == False).all()

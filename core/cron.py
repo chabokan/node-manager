@@ -1,4 +1,5 @@
 import json
+import datetime
 
 import requests
 from fastapi import BackgroundTasks
@@ -73,3 +74,15 @@ def monitor_services_usage() -> None:
     db = next(get_db())
     if crud.get_setting(db, "token"):
         cal_all_containers_stats(db)
+
+
+@app.on_event("startup")
+@repeat_every(seconds=(60 * 30), raise_exceptions=True)
+def reset_locked_root_jobs() -> None:
+    db = next(get_db())
+    jobs = crud.get_server_locked_root_jobs(db)
+    for job in jobs:
+        if job.locked_at and job.locked_at <= datetime.datetime.now() - datetime.timedelta(seconds=(60 * 120)):
+            job.locked = False
+            job.locked_at = None
+            db.commit()

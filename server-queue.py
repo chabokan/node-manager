@@ -13,6 +13,7 @@ for job in jobs:
     try:
         if job.run_at <= datetime.datetime.now():
             job.locked = True
+            job.locked_at = datetime.datetime.now()
             db.commit()
             if job.name == "restart_server":
                 crud.set_server_root_job_run(db, job.id)
