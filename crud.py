@@ -38,7 +38,8 @@ def create_server_usage(session: Session, request: ServerUsage) -> ServerUsage:
 
 
 def get_all_server_usages(session: Session) -> List[ServerUsage]:
-    return session.query(ServerUsage).all()
+    return session.query(ServerUsage).order_by(ServiceUsage.created.desc()).limit(
+        60).all()
 
 
 def get_server_locked_root_jobs(session: Session) -> List[ServerRootJob]:
