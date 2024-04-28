@@ -28,7 +28,7 @@ def get_system_info():
     # Getting CPU information
     cpu_info = {}
     cpu_info['count'] = psutil.cpu_count(logical=False)  # Physical CPU cores
-    cpu_info['usage'] = round(psutil.cpu_percent(interval=1) / 100, 2)  # CPU usage percentage
+    cpu_info['usage'] = round((psutil.cpu_percent(interval=1) / 100) * cpu_info['count'], 2)
     system_info['cpu'] = cpu_info
 
     # Getting RAM information
