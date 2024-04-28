@@ -97,4 +97,4 @@ def get_single_service_usages(session: Session, name: str) -> List[ServiceUsage]
 
 
 def get_single_service_usages_last(session: Session, name: str) -> ServiceUsage:
-    return session.query(ServiceUsage).filter(ServiceUsage.name == name).order_by(ServiceUsage.created.desc()).last()
+    return session.query(ServiceUsage).filter(ServiceUsage.name == name).last()
