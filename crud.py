@@ -38,7 +38,7 @@ def create_server_usage(session: Session, request: ServerUsage) -> ServerUsage:
 
 
 def get_all_server_usages(session: Session) -> List[ServerUsage]:
-    return session.query(ServerUsage).order_by(ServiceUsage.created.desc()).limit(
+    return session.query(ServerUsage).order_by(ServerUsage.created.desc()).limit(
         60).all()
 
 
