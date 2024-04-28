@@ -81,24 +81,26 @@ def monitor_services_usage() -> None:
 @repeat_every(seconds=(60 * 10), raise_exceptions=True)
 def reset_locked_root_jobs() -> None:
     db = next(get_db())
-    jobs = crud.get_server_locked_root_jobs(db)
-    for job in jobs:
-        if job.locked_at and job.locked_at <= datetime.datetime.now() - datetime.timedelta(seconds=(60 * 30)):
-            job.locked = False
-            job.locked_at = None
-            db.commit()
+    if crud.get_setting(db, "token"):
+        jobs = crud.get_server_locked_root_jobs(db)
+        for job in jobs:
+            if job.locked_at and job.locked_at <= datetime.datetime.now() - datetime.timedelta(seconds=(60 * 30)):
+                job.locked = False
+                job.locked_at = None
+                db.commit()
 
 
 @app.on_event("startup")
 def start_containers() -> None:
     db = next(get_db())
-    data = {"token": crud.get_setting(db, "token").value}
-    headers = {"Content-Type": "application/json", }
-    r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-services/", headers=headers,
-                      data=json.dumps(data), timeout=40)
-    if r.status_code == 200:
-        for service in r.json()['data']:
-            if service['status'] == "on":
-                os.system(f"docker start {service['main_name']}")
-            elif service['status'] == "off":
-                os.system(f"docker stop {service['main_name']}")
+    if crud.get_setting(db, "token"):
+        data = {"token": crud.get_setting(db, "token").value}
+        headers = {"Content-Type": "application/json", }
+        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-services/", headers=headers,
+                          data=json.dumps(data), timeout=40)
+        if r.status_code == 200:
+            for service in r.json()['data']:
+                if service['status'] == "on":
+                    os.system(f"docker start {service['main_name']}")
+                elif service['status'] == "off":
+                    os.system(f"docker stop {service['main_name']}")
