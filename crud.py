@@ -92,7 +92,7 @@ def create_bulk_service_usage(session: Session, service_usages: ServiceUsage) ->
 
 
 def get_single_service_usages(session: Session, name: str) -> List[ServiceUsage]:
-    return session.query(ServiceUsage).filter(ServiceUsage.name == name).all()
+    return session.query(ServiceUsage).filter(ServiceUsage.name == name).all()[:30]
 
 
 def get_single_service_usages_last(session: Session, name: str) -> ServiceUsage:
