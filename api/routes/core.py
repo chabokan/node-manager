@@ -61,6 +61,12 @@ async def jobs(background_tasks: BackgroundTasks, db=Depends(get_db)):
 
         return {"success": True}
 
+
+@router.get("/update-core/")
+async def update_core():
+    run_code = os.system("bash /app/update_core.sh")
+    return {"run-code": run_code}
+
 #
 # @router.get("/test/")
 # async def test():
