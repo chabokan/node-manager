@@ -677,8 +677,7 @@ def get_service_size(path=os.getcwd()):
 
 
 def get_container_disk_size(container_name):
-    container_disk_size = os.popen(
-        'docker ps -s --filter "name=' + container_name + '" --format "{{.Size}}"').read()
+    container_disk_size = os.popen('docker ps -s --filter "name=' + container_name + '" --format "{{.Size}}"').read()
 
     container_disk_size = container_disk_size.split(" ")[0]
     if "GB" in container_disk_size:
@@ -702,9 +701,9 @@ def get_container_disk_size(container_name):
         if container_disk_size != 0:
             container_disk_size = round(container_disk_size / 1024)
 
-    container_disk_size = round(container_disk_size + get_service_size(f"/home/{container_name}/"))
-    container_disk_size += round(get_service_size(f"/home2/{container_name}/"))
-    container_disk_size += round(get_service_size(f"/storage/{container_name}/"))
+    container_disk_size = round(container_disk_size + get_service_size(f"/home/{container_name}"))
+    container_disk_size += round(get_service_size(f"/home2/{container_name}"))
+    container_disk_size += round(get_service_size(f"/storage/{container_name}"))
 
     return container_disk_size
 

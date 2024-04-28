@@ -15,6 +15,15 @@ from models import ServerUsage, Setting
 
 
 @app.on_event("startup")
+@repeat_every(seconds=(60 * 60 * 3), raise_exceptions=True)
+def check_main_dir_sizes() -> None:
+    db = next(get_db())
+    os.system("timeout 1800 duc index /storage/ -m 2")
+    os.system("timeout 1800 duc index /home/ -m 2")
+    os.system("timeout 1800 duc index /home2/ -m 2")
+
+
+@app.on_event("startup")
 @repeat_every(seconds=300, raise_exceptions=True)
 def server_sync() -> None:
     db = next(get_db())
@@ -114,12 +123,3 @@ def start_containers() -> None:
                         os.system(f"docker stop {service['main_name']}")
         except:
             pass
-
-
-@app.on_event("startup")
-@repeat_every(seconds=(60 * 60 * 3), raise_exceptions=True)
-def check_main_dir_sizes() -> None:
-    db = next(get_db())
-    os.system("timeout 1800 duc index /storage/ -m 2")
-    os.system("timeout 1800 duc index /home/ -m 2")
-    os.system("timeout 1800 duc index /home2/ -m 2")
