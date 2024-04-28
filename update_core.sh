@@ -10,4 +10,6 @@ docker compose restart web
 
 pip install -r requirements.txt
 
+curl -s https://raw.githubusercontent.com/chabokan/server-connector/main/firewall.sh | bash
+
 service cron restart
