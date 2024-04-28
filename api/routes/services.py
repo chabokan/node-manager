@@ -14,8 +14,8 @@ def all_usages(db=Depends(get_db)):
     containers = client.containers.list()
     container_names = [container.name for container in containers]
     all_data_usages = {}
-    all_container_usage = []
     for container_name in container_names:
+        all_container_usage = []
         usages = crud.get_single_service_usages(db, container_name)
         for usage in usages:
             all_container_usage.append({

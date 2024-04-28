@@ -92,9 +92,9 @@ def create_bulk_service_usage(session: Session, service_usages: ServiceUsage) ->
 
 
 def get_single_service_usages(session: Session, name: str) -> List[ServiceUsage]:
-    return session.query(ServiceUsage).filter(ServiceUsage.name == name).order_by(ServiceUsage.created).limit(
-        30)
+    return session.query(ServiceUsage).filter(ServiceUsage.name == name).order_by(ServiceUsage.created.desc()).limit(
+        30).all()
 
 
 def get_single_service_usages_last(session: Session, name: str) -> ServiceUsage:
-    return session.query(ServiceUsage).filter(ServiceUsage.name == name).last()
+    return session.query(ServiceUsage).filter(ServiceUsage.name == name).order_by(ServiceUsage.created.desc()).first()
