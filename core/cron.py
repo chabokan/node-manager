@@ -35,13 +35,16 @@ def server_sync() -> None:
         headers = {
             "Content-Type": "application/json",
         }
-        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
-                          data=json.dumps(data), timeout=15)
-        if r.status_code == 200:
+        try:
+            r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
+                              data=json.dumps(data), timeout=15)
+            if r.status_code == 200:
+                pass
+                # crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
+                # crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
+                # crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
+        except:
             pass
-            # crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
-            # crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
-            # crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
 
 
 @app.on_event("startup")
@@ -96,11 +99,23 @@ def start_containers() -> None:
     if crud.get_setting(db, "token"):
         data = {"token": crud.get_setting(db, "token").value}
         headers = {"Content-Type": "application/json", }
-        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-services/", headers=headers,
-                          data=json.dumps(data), timeout=40)
-        if r.status_code == 200:
-            for service in r.json()['data']:
-                if service['status'] == "on":
-                    os.system(f"docker start {service['main_name']}")
-                elif service['status'] == "off":
-                    os.system(f"docker stop {service['main_name']}")
+        try:
+            r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-services/", headers=headers,
+                              data=json.dumps(data), timeout=40)
+            if r.status_code == 200:
+                for service in r.json()['data']:
+                    if service['status'] == "on":
+                        os.system(f"docker start {service['main_name']}")
+                    elif service['status'] == "off":
+                        os.system(f"docker stop {service['main_name']}")
+        except:
+            pass
+
+
+@app.on_event("startup")
+@repeat_every(seconds=(60 * 60 * 3), raise_exceptions=True)
+def check_main_dir_sizes() -> None:
+    db = next(get_db())
+    os.system("timeout 1800 duc index /storage/ -m 2")
+    os.system("timeout 1800 duc index /home/ -m 2")
+    os.system("timeout 1800 duc index /home2/ -m 2")
