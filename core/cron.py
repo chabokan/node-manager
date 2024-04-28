@@ -69,7 +69,10 @@ def get_jobs_from_hub() -> None:
         headers = {
             "Content-Type": "application/json",
         }
-        r = requests.get("http://0.0.0.0/api/v1/jobs/", headers=headers, timeout=15)
+        try:
+            r = requests.get("http://0.0.0.0/api/v1/jobs/", headers=headers, timeout=15)
+        except:
+            pass
 
 
 @app.on_event("startup")
