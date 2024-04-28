@@ -8,30 +8,6 @@ from core.db import get_db
 router = APIRouter()
 
 
-@router.get("/all-usages/")
-def all_usages(db=Depends(get_db)):
-    client = docker.from_env()
-    containers = client.containers.list()
-    container_names = [container.name for container in containers]
-    all_data_usages = {}
-    for container_name in container_names:
-        all_container_usage = []
-        usages = crud.get_single_service_usages(db, container_name)
-        for usage in usages:
-            all_container_usage.append({
-                "ram": usage.ram,
-                "cpu": usage.cpu,
-                "disk": usage.disk,
-                "read": usage.read,
-                "write": usage.write,
-                "network_rx": usage.network_rx,
-                "network_tx": usage.network_tx,
-            })
-        all_data_usages[container_name] = all_container_usage
-
-    return {"success": True, "data": all_data_usages}
-
-
 @router.get("/{name}/logs/")
 async def logs(name, db=Depends(get_db)):
     container_logs = service_logs(name)

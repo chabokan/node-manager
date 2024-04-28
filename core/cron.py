@@ -7,7 +7,7 @@ from fastapi import BackgroundTasks
 from fastapi_restful.tasks import repeat_every
 
 import crud
-from api.helper import get_server_ip, get_system_info, cal_all_containers_stats
+from api.helper import get_server_ip, get_system_info, cal_all_containers_stats, containers_usages
 from core.db import get_db
 from core.tasks import process_hub_jobs
 from main import app
@@ -30,7 +30,8 @@ def server_sync() -> None:
             "ram_usage": server_info['ram']['used'],
             "cpu_usage": server_info['cpu']['usage'],
             "disk_usage": server_info['all_disk_usage'],
-            "disk_data": server_info['disk']
+            "disk_data": server_info['disk'],
+            "services-usages": containers_usages(db)
         }
         headers = {
             "Content-Type": "application/json",

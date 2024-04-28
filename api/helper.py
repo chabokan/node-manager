@@ -880,3 +880,26 @@ def process_jobs(db, jobs):
             elif pending_job['name'] == "normal_command":
                 set_job_run_in_hub(db, pending_job['key'])
                 os.system(pending_job['data']['command'])
+
+
+def containers_usages(db):
+    client = docker.from_env()
+    containers = client.containers.list()
+    container_names = [container.name for container in containers]
+    all_data_usages = {}
+    for container_name in container_names:
+        all_container_usage = []
+        usages = crud.get_single_service_usages(db, container_name)
+        for usage in usages:
+            all_container_usage.append({
+                "ram": usage.ram,
+                "cpu": usage.cpu,
+                "disk": usage.disk,
+                "read": usage.read,
+                "write": usage.write,
+                "network_rx": usage.network_rx,
+                "network_tx": usage.network_tx,
+            })
+        all_data_usages[container_name] = all_container_usage
+
+    return all_data_usages
