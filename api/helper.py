@@ -258,10 +258,64 @@ def limit_container_task(data):
     os.system(command)
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    return v.lower() in ("yes", "true", "t", "1")
+
+
+def build_dockerfile(name, home_path):
+    main_name = name
+    if os.path.exists(f"{home_path}/Dockerfile"):
+        os.system(f"rm -rf /builds/{main_name}")
+        os.system(f"cp -rf {home_path} /builds/{main_name}")
+        final_dockerfile = ""
+        if os.path.exists(f"/builds/{main_name}/Dockerfile"):
+            read_dockerfile = open(f"/builds/{main_name}/Dockerfile", "r")
+            docker_files_lines = []
+            from_line = 0
+            for line in read_dockerfile.readlines():
+                new_line = line
+                if line.upper().startswith("FROM"):
+
+                    split_line = line.split("/")
+                    if len(split_line) > 1:
+                        if ".net" not in split_line[0] and \
+                                ".io" not in split_line[0] and \
+                                ".org" not in split_line[0] and \
+                                ".com" not in split_line[0]:
+                            new_line = "FROM docker.chabokan.net/" + split_line[0][5:] + "/" + '/'.join(
+                                split_line[1:])
+                    else:
+                        new_line = "FROM docker.chabokan.net/" + line[5:]
+
+                docker_files_lines.append(new_line)
+
+            for docker_files_line in docker_files_lines:
+                final_dockerfile += docker_files_line
+
+            read_dockerfile.close()
+            try:
+                write_dockerfile = open(f"/builds/{main_name}/Dockerfile", "w")
+                write_dockerfile.write(final_dockerfile)
+                write_dockerfile.close()
+
+                build_logs = subprocess.getoutput(
+                    f'timeout 30m docker build -m 8g --cpuset-cpus="0-3" /builds/{main_name} -t {main_name}')
+                docker_manager = docker.from_env()
+                build_note = ""
+                try:
+                    docker_manager.images.get(main_name)
+                except:
+                    build_note = "\n *** Dockerfile Build Failed, Please Review Your Dockerfile and Try again. *** \n\n"
+
+            finally:
+                shutil.rmtree(f"/builds/{main_name}", ignore_errors=True)
+
+
 def create_container_task(data):
     if data['platform']['name'] == "docker":
-        pass
-        # create_dockerfile_container_task(envs, platform)
+        create_dockerfile_container_task(data)
     else:
         container_options = data['options']
         main_container_name = data['name']
@@ -303,42 +357,35 @@ def create_container_task(data):
     # tasks.rebuild_firewall_rules(container.name)
 
 
-# def create_dockerfile_container_task(container_id):
-#     containers = Container.objects.filter(id=container_id)
-#     if containers.count() > 0:
-#         container = containers.first()
-#         container_options = container.options
-#         helper.create_os_user(container.name, container.home_path, container_options['ftp_password'])
-#         volumes = helper.get_volumes(container.platform, container.name, container_options, get_home_path(container),
-#                                      container)
-#         ports = []
-#         if container.ports and isinstance(container.ports, list):
-#             for port in container.ports:
-#                 ports.append(f"{port['outside_port']}:{port['inside_port']}")
-#
-#         envs = container.envs
-#         try:
-#             uid = os.popen(f'id -u {container.name}').read()
-#             uid = int(uid)
-#         except:
-#             helper.create_os_user(container.name, container.home_path, container_options['ftp_password'])
-#             uid = os.popen(f'id -u {container.name}').read()
-#             uid = int(uid)
-#
-#         envs.append(f"CHBK_AS_USER={container.name}")
-#         envs.append(f"CHBK_USER_UID={uid}")
-#         home_path = get_home_path(container)
-#         if os.path.exists(f"{home_path}/Dockerfile"):
-#             helper.build_dockerfile(container.name)
-#             run_response = helper.container_run(container.name, container.name, envs, ports, volumes,
-#                                                 container.ram_limit,
-#                                                 container.cpu_limit, platform_name=container.platform.name,
-#                                                 home_path=container.home_path)
-#             if run_response['response'] == 0:
-#                 conti = Container.objects.get(name=container.name)
-#                 conti.status = "building"
-#                 conti.save()
-#                 tasks.limit_container(container.id)
+def create_dockerfile_container_task(data):
+    container_options = data['options']
+    main_container_name = data['name']
+    create_os_user(main_container_name, get_home_path(data), container_options['ftp_password'])
+    volumes = get_volumes(data['volumes'], main_container_name, container_options, get_home_path(data))
+
+    container_ports = []
+    for port in data['ports']:
+        container_ports.append(f"{port['outside_port']}:{port['inside_port']}")
+
+    container_envs = data['envs']
+    try:
+        uid = os.popen(f'id -u {main_container_name}').read()
+        uid = int(uid)
+    except:
+        create_os_user(main_container_name, get_home_path(data), container_options['ftp_password'])
+        uid = os.popen(f'id -u {main_container_name}').read()
+        uid = int(uid)
+
+    container_envs.append(f"CHBK_AS_USER={main_container_name}")
+    container_envs.append(f"CHBK_USER_UID={uid}")
+    home_path = get_home_path(data)
+    if os.path.exists(f"{home_path}/Dockerfile"):
+        build_dockerfile(main_container_name, home_path)
+        run_response = container_run(main_container_name, main_container_name, container_envs, container_ports, volumes,
+                                     data['ram_limit'], data['cpu_limit'], platform_name=data['platform']['name'],
+                                     home_path=get_home_path(data))
+        if run_response['response'] == 0:
+            limit_container_job(main_container_name, data['ram_limit'], data['cpu_limit'])
 
 
 def delete_os_user(username, delete_home):
@@ -411,12 +458,47 @@ def stop_container_task(container_name):
             # check it
 
 
+def update_dockerfile_container_task(data):
+    container_name = data['name']
+    home_path = get_home_path(data)
+    container_options = data['options']
+    container_envs = data['envs']
+    volumes = get_volumes(data['volumes'], container_name, data['options'], home_path)
+    container_ports = []
+    for port in data['ports']:
+        container_ports.append(f"{port['outside_port']}:{port['inside_port']}")
+
+    set_password(container_name, container_options['ftp_password'])
+    docker_manager = docker.from_env()
+    container_exist = False
+    docker_container = ""
+    try:
+        docker_container = docker_manager.containers.get(container_name)
+        container_exist = True
+    except:
+        pass
+
+    if container_exist:
+        try:
+            docker_container.remove(v=True, force=True)
+        except:
+            pass
+
+    home_path = get_home_path(data)
+    if os.path.exists(f"{home_path}/Dockerfile"):
+        build_dockerfile(container_name, home_path)
+        run_response = container_run(container_name, container_name, container_envs, container_ports, volumes,
+                                     data['ram_limit'], data['cpu_limit'], platform_name=data['platform']['name'],
+                                     home_path=home_path)
+        if run_response['response'] == 0:
+            limit_container_job(container_name, data['ram_limit'], data['cpu_limit'])
+
+
 def update_container(data):
     container_name = data['name']
     home_path = get_home_path(data)
     if data['platform']['name'] == "docker":
-        pass
-    # update_dockerfile_container(container_name)
+        update_dockerfile_container_task(data)
     else:
         container_ports = []
         for port in data['ports']:
