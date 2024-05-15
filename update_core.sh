@@ -4,7 +4,7 @@ cd /var/ch-manager
 sudo git reset --hard HEAD && sudo git pull
 alembic upgrade head
 
-docker compose build web
+docker pull docker.chabokan.net/chabokan/node-manager
 docker compose up -d
 docker compose restart web
 
