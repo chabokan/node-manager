@@ -3,7 +3,7 @@ import json
 import os
 import crud
 from api.helper import set_job_run_in_hub, create_service, delete_service, service_action, create_backup_task, \
-    normal_restore, limit_container_task
+    normal_restore, limit_container_task, mysql_restore
 from core.db import get_db
 
 db = next(get_db())
@@ -71,7 +71,11 @@ for job in jobs:
                 crud.set_server_root_job_run(db, job.id)
             elif job.name == "restore_backup":
                 data = json.loads(job.data)
-                normal_restore(db, data)
+                if "sql.gz" in data['url'] and (
+                        data['platform']['name'] == "mysql" or data['platform']['name'] == "mariadb"):
+                    mysql_restore(data)
+                else:
+                    normal_restore(data)
                 set_job_run_in_hub(db, job.key)
                 crud.set_server_root_job_run(db, job.id)
             elif job.name == "limit_container":

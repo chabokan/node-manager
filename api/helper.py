@@ -4,11 +4,13 @@ import shutil
 import string
 import subprocess
 from random import randint
+from time import sleep
 
 import boto3
 import dateutil
 import docker
 import psutil
+import pymysql
 import pytz
 import requests
 from docker.errors import APIError
@@ -904,7 +906,7 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
     clean_out_of_space_backups(container_name)
 
 
-def normal_restore(db, data):
+def normal_restore(data):
     url = data['url']
     file_name = unquote(url.split("?")[0].split("/")[-1])
     urllib.request.urlretrieve(url, file_name)
@@ -926,6 +928,40 @@ def normal_restore(db, data):
             os.system(f"rm -rf {file_name}")
 
     rebuild_container(data)
+
+
+def restore_mysql_backup(port, user, password, backup_path):
+    ip = get_server_ip()
+    sql_con = pymysql.connect(host=ip, port=int(port), user=user, password=password)
+    sql_con.close()
+    cmd = f"gzip -cd {backup_path} | mysql --host={ip} --port={port} --user={user} --password='{password}'"
+    res_code = os.system(cmd)
+    if res_code != 0:
+        raise Exception("error in mysql restore")
+
+
+def mysql_restore(data):
+    password = "none"
+    url = data['url']
+    for env in data['envs']:
+        if "MARIADB_ROOT_PASSWORD" in env or "MYSQL_ROOT_PASSWORD" in env:
+            password = env.split("=")[1]
+
+    file_name = unquote(url.split("?")[0].split("/")[-1])
+    urllib.request.urlretrieve(url, file_name)
+    service_root_path = get_home_path(data)
+    os.system(f"rm -rf {service_root_path}")
+    os.mkdir(service_root_path)
+    rebuild_container(data)
+    sleep(90)
+    try:
+        restore_mysql_backup(port=data['ports'][0]['outside_port'], user="root", password=password,
+                             backup_path=file_name)
+    except:
+        raise Exception("can not restore")
+    finally:
+        if os.path.exists(file_name):
+            os.system(f"rm -rf {file_name}")
 
 
 def process_jobs(db, jobs):
