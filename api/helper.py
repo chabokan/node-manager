@@ -289,7 +289,7 @@ def process_deploy_file_task(data):
             if vol['is_main']:
                 main_vol = vol
 
-        main_volume_path = f"{service_home_path}/{main_vol.name}"
+        main_volume_path = f"{service_home_path}/{main_vol['name']}"
 
     if "options" in data:
         options = json.loads(data['options'])
