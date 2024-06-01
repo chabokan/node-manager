@@ -1,6 +1,11 @@
 #!/bin/bash
 
 cd /var/ch-manager
+
+# temporary
+apt install -y default-mysql-client
+########
+
 sudo git reset --hard HEAD && sudo git pull
 alembic upgrade head
 

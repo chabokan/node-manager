@@ -253,6 +253,119 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
     return run_response
 
 
+def normalize_permanent_path(path):
+    new_path = path
+    if path.startswith("/"):
+        new_path = new_path[1:]
+
+    if not new_path.startswith("/"):
+        return new_path
+    else:
+        normalize_permanent_path(new_path)
+
+
+def process_deploy_file_task(data):
+    deploy_file_name = f'{data["name"]}{randint(111111, 999999)}.tar.gz'
+    request = requests.get(data["url"], timeout=10, stream=True)
+    with open(deploy_file_name, 'wb') as fh:
+        for chunk in request.iter_content(1024 * 1024):
+            fh.write(chunk)
+
+    volumes = data['volumes']
+    service_home_path = get_home_path(data)
+
+    if "--d--" in data["name"]:
+        name = data["name"].split("--d--")[0]
+        home_path = get_home_path(data)
+        main_service_home_path = home_path
+        os.system(f"rm -rf '{service_home_path}'")
+        os.system(f"cp -R '{main_service_home_path}/'"
+                  f" '{service_home_path}/'")
+
+    main_volume_path = service_home_path
+    if len(volumes) > 0:
+        main_vol = {}
+        for vol in volumes:
+            if vol['is_main']:
+                main_vol = vol
+
+        main_volume_path = f"{service_home_path}/{main_vol.name}"
+
+    if "options" in data:
+        options = json.loads(data['options'])
+        if "destination" in options:
+            home_path = get_home_path(data)
+            des = options['destination']
+            if des.startswith("/"):
+                main_volume_path = f"{home_path}{des}"
+            else:
+                main_volume_path = f"{home_path}/{des}"
+
+    deploy_tmp_path = f"/tmp/{data['name']}-tmp-deploy/"
+    try:
+        # copy permanent paths files to tmp
+        if "permanent_paths" in data:
+            os.system(f"rm -rf '{deploy_tmp_path}' && mkdir -p '{deploy_tmp_path}'")
+            for permanent_path in data['permanent_paths']:
+                final_permanent_path = normalize_permanent_path(permanent_path['path'])
+                final_permanent_path_directory = ""
+                if len(final_permanent_path.split('/')) > 1:
+                    final_permanent_path_directory = f"{final_permanent_path}".split('/')
+                    final_permanent_path_directory.pop()
+                    final_permanent_path_directory = '/'.join(final_permanent_path_directory)
+
+                if os.path.exists(f"{main_volume_path}/{final_permanent_path}"):
+                    os.system(f"mkdir -p '{deploy_tmp_path}/{final_permanent_path_directory}'")
+                    os.system(f"mv '{main_volume_path}/{final_permanent_path}'"
+                              f" '{deploy_tmp_path}/{final_permanent_path_directory}'")
+
+        # remove and create main path
+        os.system(f"rm -rf '{main_volume_path}'")
+        os.mkdir(main_volume_path)
+
+        # move deploy file and untar deploy to main path
+        os.system(f"mv '{deploy_file_name}' '{main_volume_path}'")
+        os.system(f"tar -xf {main_volume_path}/{deploy_file_name} -C {main_volume_path}")
+        os.system(f"rm -rf '{main_volume_path}/{deploy_file_name}'")
+
+        if "permanent_paths" in data:
+            # copy permanent paths files from tmp to main path
+            for permanent_path in data['permanent_paths']:
+                # first we should remove permanent paths existed
+                final_permanent_path = normalize_permanent_path(permanent_path['path'])
+                if os.path.exists(f"{deploy_tmp_path}/{final_permanent_path}"):
+                    os.system(f"rm -rf '{main_volume_path}/{final_permanent_path}'")
+
+                    if len(final_permanent_path.split('/')) > 1:
+                        final_permanent_path_directory = f"{final_permanent_path}".split('/')
+                        final_permanent_path_directory.pop()
+                        final_permanent_path_directory = '/'.join(final_permanent_path_directory)
+                        os.system(f"mkdir -p '{main_volume_path}/{final_permanent_path_directory}'")
+
+                    os.system(
+                        f"mv '{deploy_tmp_path}/{final_permanent_path}' '{main_volume_path}/{final_permanent_path}'")
+    finally:
+        if os.path.exists(deploy_tmp_path):
+            os.system(f"rm -rf {deploy_tmp_path}")
+
+        if os.path.exists(deploy_file_name):
+            os.system(f"rm -rf {deploy_file_name}")
+
+    rebuild_container(data)
+
+
+def process_zero_down_time_deploy(data):
+    name = data['name'] + "--d--" + data['deploy_key']
+    process_deploy_file_task(data)
+
+
+def deploy_task(data):
+    if data['zero_down_time']:
+        process_zero_down_time_deploy(data)
+    else:
+        process_deploy_file_task(data)
+
+
 def limit_container_task(data):
     command = "docker update "
     command += f'-m {data["ram_limit"]}g --cpus="{data["cpu_limit"]}" '
@@ -975,7 +1088,7 @@ def process_jobs(db, jobs):
         for pending_job in pending_jobs:
             if pending_job['name'] in ["restart_server", "service_create", "service_delete", 'service_action',
                                        'host_command', 'delete_core', 'debug_on', 'debug_off', 'create_backup',
-                                       'restore_backup', 'limit_container', 'update_core']:
+                                       'restore_backup', 'limit_container', 'update_core', 'deploy_service']:
 
                 run_at = ""
                 try:

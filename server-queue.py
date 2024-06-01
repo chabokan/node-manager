@@ -3,7 +3,7 @@ import json
 import os
 import crud
 from api.helper import set_job_run_in_hub, create_service, delete_service, service_action, create_backup_task, \
-    normal_restore, limit_container_task, mysql_restore
+    normal_restore, limit_container_task, mysql_restore, deploy_task
 from core.db import get_db
 
 db = next(get_db())
@@ -81,6 +81,10 @@ for job in jobs:
             elif job.name == "limit_container":
                 data = json.loads(job.data)
                 limit_container_task(data)
+                crud.set_server_root_job_run(db, job.id)
+            elif job.name == "deploy_service":
+                data = json.loads(job.data)
+                deploy_task(data)
                 crud.set_server_root_job_run(db, job.id)
     except:
         if job.run_count < 6:
