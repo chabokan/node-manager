@@ -990,7 +990,7 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
         disk_usage = get_size(get_home_path(data))
 
     disk_usage_gb = (disk_usage / 1024) / 1024
-    if disk_usage > 4 and disk_usage_gb <= 5:
+    if disk_usage > 4 and disk_usage_gb <= 50:
         [backup_name, backup_location] = create_backup_archive_file(container_name,
                                                                     get_home_path(data),
                                                                     backup_name)
