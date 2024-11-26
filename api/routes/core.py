@@ -34,18 +34,21 @@ async def connect(token: str, db=Depends(get_db)):
     headers = {
         "Content-Type": "application/json",
     }
-    r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
-                      data=json.dumps(data))
-    if r.status_code == 200:
-        crud.create_setting(db, Setting(key="token", value=token))
-        crud.create_setting(db, Setting(key="technical_name", value=r.json()['technical_name']))
-        crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
-        crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
-        crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
+    try:
+        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
+                          data=json.dumps(data), timeout=60)
+        if r.status_code == 200:
+            crud.create_setting(db, Setting(key="token", value=token))
+            crud.create_setting(db, Setting(key="technical_name", value=r.json()['technical_name']))
+            crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
+            crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
+            crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
 
-        return {"success": True, "message": "node connected to chabokan successfully."}
-    else:
-        return {"success": False, "status": r.status_code, "response": r.json()}
+            return {"success": True, "message": "node connected to chabokan successfully."}
+        else:
+            return {"success": False, "status": r.status_code, "response": r.json()}
+    except:
+        return {"success": False, "status": 543, "response": {}}
 
 
 @router.get("/jobs/")
@@ -53,16 +56,11 @@ async def jobs(background_tasks: BackgroundTasks, db=Depends(get_db)):
     if crud.get_setting(db, key="token"):
         data = {"token": crud.get_setting(db, "token").value}
         headers = {"Content-Type": "application/json", }
-        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-jobs/", headers=headers,
-                          data=json.dumps(data), timeout=40)
-        if r.status_code == 200:
-            process_jobs(db, r.json()['data'])
-            # background_tasks.add_task(process_hub_jobs, jobs=r.json()['data'])
-
+        try:
+            r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-jobs/", headers=headers,
+                              data=json.dumps(data), timeout=45)
+            if r.status_code == 200:
+                process_jobs(db, r.json()['data'])
+        except:
+            pass
         return {"success": True}
-
-#
-# @router.get("/test/")
-# async def test():
-#     db = next(get_db())
-#     return crud.get_setting(db, "token").value

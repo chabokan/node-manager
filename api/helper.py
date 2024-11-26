@@ -96,7 +96,7 @@ def set_job_run_in_hub(db, key, status="success"):
         "Content-Type": "application/json",
     }
     r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/receive-server-jobs/", headers=headers,
-                      data=json.dumps(data), timeout=15)
+                      data=json.dumps(data), timeout=45)
 
 
 def get_home_path(data):
