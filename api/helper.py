@@ -1092,7 +1092,15 @@ def process_jobs(db, jobs):
 
                 run_at = ""
                 try:
-                    run_at = dateutil.parser.parse(pending_job['run_at'])
+                    parsed_date = dateutil.parser.parse(pending_job['run_at'])
+                    # Localize the date to UTC (if not already specified)
+                    utc_date = parsed_date if parsed_date.tzinfo else pytz.utc.localize(parsed_date)
+
+                    # Convert to Tehran timezone
+                    tehran_timezone = pytz.timezone("Asia/Tehran")
+                    tehran_date = utc_date.astimezone(tehran_timezone)
+
+                    run_at = tehran_date
                 except:
                     pass
 
