@@ -12,9 +12,13 @@ jobs = crud.get_server_not_completed_and_pending_root_jobs(db)
 for job in jobs:
     try:
         if job.run_at <= datetime.datetime.now():
+            if job.name == "create_backup" and len(crud.get_server_backup_locked(db)) >= 2:
+                continue
+
             job.locked = True
             job.locked_at = datetime.datetime.now()
             db.commit()
+
             if job.name == "restart_server":
                 crud.set_server_root_job_run(db, job.id)
                 set_job_run_in_hub(db, job.key)
@@ -65,11 +69,10 @@ for job in jobs:
                 else:
                     raise Exception(f"error cmd_code: {cmd_code}")
             elif job.name == "create_backup":
-                if len(crud.get_server_backup_locked(db)) < 2:
-                    data = json.loads(job.data)
-                    create_backup_task(db, data['name'], data['platform'])
-                    set_job_run_in_hub(db, job.key)
-                    crud.set_server_root_job_run(db, job.id)
+                data = json.loads(job.data)
+                create_backup_task(db, data['name'], data['platform'])
+                set_job_run_in_hub(db, job.key)
+                crud.set_server_root_job_run(db, job.id)
             elif job.name == "restore_backup":
                 data = json.loads(job.data)
                 if "sql.gz" in data['url'] and (
