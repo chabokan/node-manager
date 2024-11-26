@@ -65,10 +65,11 @@ for job in jobs:
                 else:
                     raise Exception(f"error cmd_code: {cmd_code}")
             elif job.name == "create_backup":
-                data = json.loads(job.data)
-                create_backup_task(db, data['name'], data['platform'])
-                set_job_run_in_hub(db, job.key)
-                crud.set_server_root_job_run(db, job.id)
+                if crud.get_server_backup_not_completed_and_pending_root_jobs(db).count() <= 1:
+                    data = json.loads(job.data)
+                    create_backup_task(db, data['name'], data['platform'])
+                    set_job_run_in_hub(db, job.key)
+                    crud.set_server_root_job_run(db, job.id)
             elif job.name == "restore_backup":
                 data = json.loads(job.data)
                 if "sql.gz" in data['url'] and (

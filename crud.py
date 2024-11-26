@@ -52,6 +52,12 @@ def get_server_not_completed_and_pending_root_jobs(session: Session) -> List[Ser
                                                ServerRootJob.status == "pending", ServerRootJob.locked.is_(False)).all()
 
 
+def get_server_backup_not_completed_and_pending_root_jobs(session: Session) -> List[ServerRootJob]:
+    return session.query(ServerRootJob).filter(ServerRootJob.name == "create_backup",
+                                               ServerRootJob.completed_at.is_(None),
+                                               ServerRootJob.status == "pending", ServerRootJob.locked.is_(False)).all()
+
+
 def get_server_root_job(session: Session, key: str) -> ServerRootJob:
     return session.query(ServerRootJob).filter(ServerRootJob.key == key).first()
 
