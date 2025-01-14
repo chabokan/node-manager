@@ -762,7 +762,8 @@ def service_logs(name):
         docker_container = docker_manager.containers.get(name)
         logs = str(docker_container.logs(timestamps=True, tail=1000).decode("utf-8"))
         for log_line in logs.splitlines():
-            if log_line.startswith("2022") or log_line.startswith("2023") or log_line.startswith("2024"):
+            if log_line.startswith("2022") or log_line.startswith("2023") or log_line.startswith(
+                    "2024") or log_line.startswith("2025") or log_line.startswith("2026"):
                 log_date = log_line[:30]
                 local_date_timestamp = dateutil.parser.isoparse(log_date).timestamp()
                 zone_ir = pytz.timezone("Asia/Tehran")
