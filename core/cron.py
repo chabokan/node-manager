@@ -124,7 +124,7 @@ def start_containers() -> None:
 
 
 @app.on_event("startup")
-@repeat_every(seconds=(60 * 60 * 24), raise_exceptions=True)
+@repeat_every(seconds=(60 * 60 * 24))
 def clean_old_jobs() -> None:
     db = next(get_db())
     if crud.get_setting(db, "token"):
@@ -136,7 +136,7 @@ def clean_old_jobs() -> None:
 
 
 @app.on_event("startup")
-@repeat_every(seconds=(60 * 60 * 24), raise_exceptions=True)
+@repeat_every(seconds=(60 * 60 * 24))
 def clean_old_server_usage() -> None:
     db = next(get_db())
     if crud.get_setting(db, "token"):
@@ -148,7 +148,7 @@ def clean_old_server_usage() -> None:
 
 
 @app.on_event("startup")
-@repeat_every(seconds=(60 * 60 * 24), raise_exceptions=True)
+@repeat_every(seconds=(60 * 60 * 24))
 def clean_old_service_usage() -> None:
     db = next(get_db())
     if crud.get_setting(db, "token"):
