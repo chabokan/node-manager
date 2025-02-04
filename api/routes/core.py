@@ -41,6 +41,7 @@ async def connect(token: str, db=Depends(get_db)):
             crud.create_setting(db, Setting(key="token", value=token))
             crud.create_setting(db, Setting(key="technical_name", value=r.json()['technical_name']))
             crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
+            crud.create_setting(db, Setting(key="backup_server_bucket", value=r.json()['backup_server_bucket']))
             crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
             crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
 

@@ -44,6 +44,14 @@ for job in jobs:
                 crud.set_server_root_job_run(db, job.id)
                 os.system(data['command'])
             elif job.name == "update_core":
+                data = json.loads(job.data)
+
+                crud.update_or_create_setting(db, "technical_name", data['technical_name'])
+                crud.update_or_create_setting(db, "backup_server_url", data['backup_server_url'])
+                crud.update_or_create_setting(db, "backup_server_access_key", data['backup_server_access_key'])
+                crud.update_or_create_setting(db, "backup_server_secret_key", data['backup_server_secret_key'])
+                crud.update_or_create_setting(db, "backup_server_bucket", data['backup_server_bucket'])
+
                 cmd_code = os.system("bash /var/ch-manager/update_core.sh")
                 if cmd_code == 0:
                     set_job_run_in_hub(db, job.key)

@@ -16,6 +16,19 @@ def create_setting(session: Session, request: Setting) -> Setting:
     return db_obj
 
 
+def update_or_create_setting(session: Session, key, value) -> Setting:
+    setting = session.query(Setting).filter(Setting.key == key).first()
+    if setting:
+        setting.value = value
+    else:
+        setting = Setting(key=key, value=value)
+        session.add(setting)
+    session.commit()
+    session.refresh(setting)
+    return setting
+
+
+
 def get_all_settings(session: Session) -> List[Setting]:
     return session.query(Setting).all()
 

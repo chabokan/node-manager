@@ -130,7 +130,7 @@ def clean_old_jobs() -> None:
     if crud.get_setting(db, "token"):
         jobs = crud.get_all_jobs(db)
         for job in jobs:
-            if job.created and job.created <= datetime.datetime.now() - datetime.timedelta(days=30):
+            if job.created and job.created <= datetime.datetime.now() - datetime.timedelta(days=14):
                 db.delete(job)
                 db.commit()
 
@@ -142,7 +142,7 @@ def clean_old_server_usage() -> None:
     if crud.get_setting(db, "token"):
         usages = crud.get_full_server_usages(db)
         for usage in usages:
-            if usage.created and usage.created <= datetime.datetime.now() - datetime.timedelta(days=30):
+            if usage.created and usage.created <= datetime.datetime.now() - datetime.timedelta(days=14):
                 db.delete(usage)
                 db.commit()
 
@@ -154,6 +154,6 @@ def clean_old_service_usage() -> None:
     if crud.get_setting(db, "token"):
         usages = crud.get_full_services_usages(db)
         for usage in usages:
-            if usage.created and usage.created <= datetime.datetime.now() - datetime.timedelta(days=30):
+            if usage.created and usage.created <= datetime.datetime.now() - datetime.timedelta(days=14):
                 db.delete(usage)
                 db.commit()
