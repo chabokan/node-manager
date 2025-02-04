@@ -20,6 +20,10 @@ def get_all_settings(session: Session) -> List[Setting]:
     return session.query(Setting).all()
 
 
+def get_all_jobs(session: Session) -> List[ServerRootJob]:
+    return session.query(ServerRootJob).all()
+
+
 def get_setting(session: Session, key) -> Setting:
     return session.query(Setting).filter(Setting.key == key).first()
 
@@ -35,6 +39,14 @@ def create_server_usage(session: Session, request: ServerUsage) -> ServerUsage:
     session.commit()
     session.refresh(db_obj)
     return db_obj
+
+
+def get_full_server_usages(session: Session) -> List[ServerUsage]:
+    return session.query(ServerUsage).order_by(ServerUsage.created.desc()).all()
+
+
+def get_full_services_usages(session: Session) -> List[ServiceUsage]:
+    return session.query(ServiceUsage).order_by(ServiceUsage.created.desc()).all()
 
 
 def get_all_server_usages(session: Session) -> List[ServerUsage]:

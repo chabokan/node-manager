@@ -3,15 +3,13 @@ import datetime
 import os
 
 import requests
-from fastapi import BackgroundTasks
 from fastapi_restful.tasks import repeat_every
 
 import crud
 from api.helper import get_server_ip, get_system_info, cal_all_containers_stats, containers_usages
 from core.db import get_db
-from core.tasks import process_hub_jobs
 from main import app
-from models import ServerUsage, Setting
+from models import ServerUsage
 
 
 @app.on_event("startup")
@@ -123,3 +121,39 @@ def start_containers() -> None:
                         os.system(f"docker stop {service['main_name']}")
         except:
             pass
+
+
+@app.on_event("startup")
+@repeat_every(seconds=(60 * 60 * 24), raise_exceptions=True)
+def clean_old_jobs() -> None:
+    db = next(get_db())
+    if crud.get_setting(db, "token"):
+        jobs = crud.get_all_jobs(db)
+        for job in jobs:
+            if job.created and job.created <= datetime.datetime.now() - datetime.timedelta(days=30):
+                db.delete(job)
+                db.commit()
+
+
+@app.on_event("startup")
+@repeat_every(seconds=(60 * 60 * 24), raise_exceptions=True)
+def clean_old_server_usage() -> None:
+    db = next(get_db())
+    if crud.get_setting(db, "token"):
+        usages = crud.get_full_server_usages(db)
+        for usage in usages:
+            if usage.created and usage.created <= datetime.datetime.now() - datetime.timedelta(days=30):
+                db.delete(usage)
+                db.commit()
+
+
+@app.on_event("startup")
+@repeat_every(seconds=(60 * 60 * 24), raise_exceptions=True)
+def clean_old_service_usage() -> None:
+    db = next(get_db())
+    if crud.get_setting(db, "token"):
+        usages = crud.get_full_services_usages(db)
+        for usage in usages:
+            if usage.created and usage.created <= datetime.datetime.now() - datetime.timedelta(days=30):
+                db.delete(usage)
+                db.commit()
