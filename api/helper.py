@@ -1004,6 +1004,13 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
         )
         object_name = f"{container_name}/{backup_name}"
         backup_path = backup_location + backup_name
+        bucket = crud.get_setting(db, "technical_name").value
+
+        try:
+            bucket = crud.get_setting(db, "backup_server_bucket").value
+        except:
+            pass
+
         try:
             size = subprocess.check_output(['du', '-s', backup_path]).split()[0].decode('utf-8')
         except:
@@ -1011,7 +1018,7 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
 
         if size != 0:
             try:
-                s3_client.upload_file(backup_path, crud.get_setting(db, "technical_name").value, object_name)
+                s3_client.upload_file(backup_path, bucket, object_name)
             except:
                 raise Exception("can't upload backup file")
             finally:
