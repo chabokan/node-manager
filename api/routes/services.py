@@ -32,8 +32,15 @@ async def backups(name: str, db=Depends(get_db)):
             aws_access_key_id=crud.get_setting(db, "backup_server_access_key").value,
             aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key").value,
         )
+        bucket = crud.get_setting(db, "technical_name").value
+
+        try:
+            bucket = crud.get_setting(db, "backup_server_bucket").value
+        except:
+            pass
+
         all_backup_objects = \
-            s3_client.list_objects(Bucket=crud.get_setting(db, "technical_name").value, Prefix=f"{name}/")[
+            s3_client.list_objects(Bucket=bucket, Prefix=f"{name}/")[
                 'Contents']
         for ob in all_backup_objects:
             if ob['Key'].startswith(f"{name}/"):
@@ -63,8 +70,15 @@ async def get_backups(name: str, object_name: str, db=Depends(get_db)):
         aws_access_key_id=crud.get_setting(db, "backup_server_access_key").value,
         aws_secret_access_key=crud.get_setting(db, "backup_server_secret_key").value,
     )
+    bucket = crud.get_setting(db, "technical_name").value
+
+    try:
+        bucket = crud.get_setting(db, "backup_server_bucket").value
+    except:
+        pass
+
     url = s3_client.generate_presigned_url('get_object',
-                                           Params={'Bucket': crud.get_setting(db, "technical_name").value,
+                                           Params={'Bucket': bucket,
                                                    'Key': object_name},
                                            ExpiresIn=36000)
 
