@@ -35,7 +35,9 @@ async def backups(name: str, db=Depends(get_db)):
         bucket = crud.get_setting(db, "technical_name").value
 
         try:
-            bucket = crud.get_setting(db, "backup_server_bucket").value
+            backup_server_bucket = crud.get_setting(db, "backup_server_bucket").value
+            if len(backup_server_bucket) > 2:
+                bucket = backup_server_bucket
         except:
             pass
 
@@ -73,7 +75,9 @@ async def get_backups(name: str, object_name: str, db=Depends(get_db)):
     bucket = crud.get_setting(db, "technical_name").value
 
     try:
-        bucket = crud.get_setting(db, "backup_server_bucket").value
+        backup_server_bucket = crud.get_setting(db, "backup_server_bucket").value
+        if len(backup_server_bucket) > 2:
+            bucket = backup_server_bucket
     except:
         pass
 

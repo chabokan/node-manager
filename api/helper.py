@@ -1007,7 +1007,9 @@ def create_backup_task(db, container_name, platform_name, backup_name=None):
         bucket = crud.get_setting(db, "technical_name").value
 
         try:
-            bucket = crud.get_setting(db, "backup_server_bucket").value
+            backup_server_bucket = crud.get_setting(db, "backup_server_bucket").value
+            if len(backup_server_bucket) > 2:
+                bucket = backup_server_bucket
         except:
             pass
 
