@@ -14,9 +14,12 @@ router = APIRouter()
 
 
 @router.post("/connect/")
-async def connect(token: str, db=Depends(get_db)):
+async def connect(token: str, hub_url="hub.chabokan.net", db=Depends(get_db)):
     if crud.get_setting(db, key="token"):
         return {"success": False, "message": "node connected before!"}
+
+
+    base_hub_url = hub_url
 
     server_info = get_system_info()
     ip = get_server_ip()
@@ -35,10 +38,11 @@ async def connect(token: str, db=Depends(get_db)):
         "Content-Type": "application/json",
     }
     try:
-        r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
+        r = requests.post(f"https://{base_hub_url}/fa/api/v1/servers/connect-server/", headers=headers,
                           data=json.dumps(data), timeout=60)
         if r.status_code == 200:
             crud.create_setting(db, Setting(key="token", value=token))
+            crud.create_setting(db, Setting(key="base_hub_url", value=base_hub_url))
             crud.create_setting(db, Setting(key="technical_name", value=r.json()['technical_name']))
             crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
             crud.create_setting(db, Setting(key="backup_server_bucket", value=r.json()['backup_server_bucket']))
@@ -56,9 +60,10 @@ async def connect(token: str, db=Depends(get_db)):
 async def jobs(background_tasks: BackgroundTasks, db=Depends(get_db)):
     if crud.get_setting(db, key="token"):
         data = {"token": crud.get_setting(db, "token").value}
+        base_hub_url = crud.get_setting(db, "base_hub_url").value
         headers = {"Content-Type": "application/json", }
         try:
-            r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-jobs/", headers=headers,
+            r = requests.post(f"https://{base_hub_url}/fa/api/v1/servers/get-server-jobs/", headers=headers,
                               data=json.dumps(data), timeout=45)
             if r.status_code == 200:
                 process_jobs(db, r.json()['data'])
