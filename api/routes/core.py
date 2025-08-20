@@ -18,7 +18,6 @@ async def connect(token: str, hub_url="hub.chabokan.net", db=Depends(get_db)):
     if crud.get_setting(db, key="token"):
         return {"success": False, "message": "node connected before!"}
 
-
     base_hub_url = hub_url
 
     server_info = get_system_info()
@@ -60,8 +59,17 @@ async def connect(token: str, hub_url="hub.chabokan.net", db=Depends(get_db)):
 async def jobs(background_tasks: BackgroundTasks, db=Depends(get_db)):
     if crud.get_setting(db, key="token"):
         data = {"token": crud.get_setting(db, "token").value}
-        base_hub_url = crud.get_setting(db, "base_hub_url").value
+        try:
+            base_hub_url = crud.get_setting(db, "base_hub_url").value
+            if not base_hub_url:
+                crud.create_setting(db, Setting(key="base_hub_url", value="hub.chabokan.net"))
+                base_hub_url = crud.get_setting(db, "base_hub_url").value
+        except:
+            crud.create_setting(db, Setting(key="base_hub_url", value="hub.chabokan.net"))
+            base_hub_url = crud.get_setting(db, "base_hub_url").value
+
         headers = {"Content-Type": "application/json", }
+
         try:
             r = requests.post(f"https://{base_hub_url}/fa/api/v1/servers/get-server-jobs/", headers=headers,
                               data=json.dumps(data), timeout=45)
