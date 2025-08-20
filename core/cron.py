@@ -44,7 +44,9 @@ def server_sync() -> None:
             "Content-Type": "application/json",
         }
         try:
-            r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/connect-server/", headers=headers,
+            base_hub_url = crud.get_setting(db, "base_hub_url").value
+
+            r = requests.post(f"https://{base_hub_url}/fa/api/v1/servers/connect-server/", headers=headers,
                               data=json.dumps(data), timeout=45)
             if r.status_code == 200:
                 pass
@@ -111,7 +113,9 @@ def start_containers() -> None:
         data = {"token": crud.get_setting(db, "token").value}
         headers = {"Content-Type": "application/json", }
         try:
-            r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/get-server-services/", headers=headers,
+            base_hub_url = crud.get_setting(db, "base_hub_url").value
+
+            r = requests.post(f"https://{base_hub_url}/fa/api/v1/servers/get-server-services/", headers=headers,
                               data=json.dumps(data), timeout=45)
             if r.status_code == 200:
                 for service in r.json()['data']:

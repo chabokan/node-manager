@@ -95,7 +95,9 @@ def set_job_run_in_hub(db, key, status="success"):
     headers = {
         "Content-Type": "application/json",
     }
-    r = requests.post("https://hub.chabokan.net/fa/api/v1/servers/receive-server-jobs/", headers=headers,
+    base_hub_url = crud.get_setting(db, "base_hub_url").value
+
+    r = requests.post(f"https://{base_hub_url}/fa/api/v1/servers/receive-server-jobs/", headers=headers,
                       data=json.dumps(data), timeout=45)
 
 
