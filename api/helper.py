@@ -99,6 +99,10 @@ def set_job_run_in_hub(db, key, status="success"):
 
     r = requests.post(f"https://{base_hub_url}/fa/api/v1/servers/receive-server-jobs/", headers=headers,
                       data=json.dumps(data), timeout=45)
+    r.raise_for_status()
+    response = r.json()
+    if response.get("success") is not True or response.get("status") != status:
+        raise ValueError(f"Hub did not accept job {key}")
 
 
 def get_home_path(data):
@@ -112,12 +116,10 @@ def get_home_path(data):
 
 def create_service(db, key, data):
     create_container_task(data)
-    set_job_run_in_hub(db, key)
 
 
 def delete_service(db, key, data):
     delete_container_task(data['name'])
-    set_job_run_in_hub(db, key)
 
 
 def change_user_home_path(username, home_path):
@@ -1117,19 +1119,23 @@ def process_jobs(db, jobs):
                     pass
 
                 if not run_at:
-                    run_at = datetime.datetime.now()
+                    run_at = datetime.now()
                 if not crud.get_server_root_job(db, pending_job['key']):
                     crud.create_server_root_job(db, ServerRootJob(name=pending_job['name'], key=pending_job['key'],
                                                                   data=json.dumps(pending_job['data']),
                                                                   run_at=run_at))
                 else:
                     server_root_job = crud.get_server_root_job(db, pending_job['key'])
-                    if server_root_job.completed_at:
-                        set_job_run_in_hub(db, pending_job['key'])
+                    if server_root_job.completed_at or server_root_job.status == "failed":
+                        try:
+                            set_job_run_in_hub(db, pending_job['key'], server_root_job.status)
+                        except (requests.RequestException, ValueError):
+                            pass
 
             elif pending_job['name'] == "normal_command":
-                set_job_run_in_hub(db, pending_job['key'])
-                os.system(pending_job['data']['command'])
+                if not crud.get_server_root_job(db, pending_job['key']):
+                    crud.create_server_root_job(db, ServerRootJob(name="normal_command",
+                        key=pending_job['key'], data=json.dumps(pending_job['data']), run_at=datetime.now()))
 
 
 def containers_usages(db):

@@ -1,6 +1,7 @@
 import datetime
 
 from sqlalchemy.orm import Session
+from sqlalchemy import update
 from models import Setting, ServerUsage, ServerRootJob, ServiceUsage
 from typing import List
 
@@ -85,6 +86,25 @@ def get_server_backup_locked(session: Session) -> List[ServerRootJob]:
 
 def get_server_root_job(session: Session, key: str) -> ServerRootJob:
     return session.query(ServerRootJob).filter(ServerRootJob.key == key).first()
+
+
+def claim_server_root_job(session: Session, job: ServerRootJob) -> bool:
+    result = session.execute(update(ServerRootJob).where(
+        ServerRootJob.id == job.id,
+        ServerRootJob.status == "pending",
+        ServerRootJob.completed_at.is_(None),
+        ServerRootJob.locked.is_(False),
+    ).values(locked=True, locked_at=datetime.datetime.now()))
+    session.commit()
+    session.refresh(job)
+    return result.rowcount == 1
+
+
+def fail_server_root_job(session: Session, job: ServerRootJob) -> None:
+    job.status = "failed"
+    job.completed_at = datetime.datetime.now()
+    job.locked = False
+    session.commit()
 
 
 def create_server_root_job(session: Session, request: ServerRootJob) -> ServerRootJob:

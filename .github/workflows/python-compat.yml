@@ -1,0 +1,27 @@
+name: Python compatibility
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.13']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install pinned wheels
+        run: |
+          python -m pip install --only-binary=:all: -r requirements.txt
+      - name: Check dependencies and integration
+        run: |
+          python -m pip check
+          python -m unittest discover -s tests -q
+          alembic upgrade head
+          python -c "from main import app; assert app.routes"

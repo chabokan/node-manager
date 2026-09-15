@@ -10,6 +10,7 @@ from api.helper import get_server_ip, get_system_info, cal_all_containers_stats,
 from core.db import get_db
 from main import app
 from models import ServerUsage
+from server_queue import run_pending_jobs
 
 
 @app.on_event("startup")
@@ -80,9 +81,20 @@ def get_jobs_from_hub() -> None:
             "Content-Type": "application/json",
         }
         try:
-            r = requests.get("http://0.0.0.0/api/v1/jobs/", headers=headers, timeout=45)
+            r = requests.get("http://127.0.0.1/api/v1/jobs/", headers=headers, timeout=45)
         except:
             pass
+
+
+@app.on_event("startup")
+@repeat_every(seconds=30, raise_exceptions=True)
+def run_server_jobs() -> None:
+    db = next(get_db())
+    try:
+        if crud.get_setting(db, "token"):
+            run_pending_jobs(db, host_mode=False)
+    finally:
+        db.close()
 
 
 @app.on_event("startup")
