@@ -10,6 +10,12 @@ services:
       - /storage:/storage
       - /var/run/docker.sock:/var/run/docker.sock
       - /backups:/backups
+      - type: bind
+        source: /root/.docker/config.json
+        target: /root/.docker/config.json
+        read_only: true
+        bind:
+          create_host_path: false
     restart: "always"
     deploy:
       resources:
@@ -21,4 +27,3 @@ services:
 networks:
   node-manager:
     driver: bridge
-
