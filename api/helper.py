@@ -23,6 +23,7 @@ from core.db import SessionLocal
 from models import ServiceUsage, ServerRootJob
 from urllib.parse import unquote
 import urllib.request
+from host_inventory import read_host_inventory
 
 
 def get_system_info():
@@ -44,31 +45,13 @@ def get_system_info():
     ram_info['percent'] = ram.percent
     system_info['ram'] = ram_info
 
-    # Getting disk information
-    disk_info = {}
-    disks = psutil.disk_partitions()
-    system_info['all_disk_space'] = 0
-    system_info['all_disk_usage'] = 0
-    seen_devices = set()
-    for disk in disks:
-        disk_usage = psutil.disk_usage(disk.mountpoint)
-        total = byte_to_gb(disk_usage.total)
-        used = byte_to_gb(disk_usage.used)
-        disk_info[disk.mountpoint] = {
-            'device': disk.device,
-            'mountpoint': disk.mountpoint,
-            'total': total,
-            'used': used,
-            'free': byte_to_gb(disk_usage.free),
-            'percent': disk_usage.percent
-        }
-        # Bind mounts expose the same filesystem at more than one path.
-        identity = disk.device or disk.mountpoint
-        if identity not in seen_devices:
-            system_info['all_disk_space'] += total
-            system_info['all_disk_usage'] += used
-            seen_devices.add(identity)
+    # The web process runs in a container. Its partitions include bind mounts,
+    # so only the inventory gathered by the host cron worker is authoritative.
+    inventory = read_host_inventory()
+    disk_info = inventory.get('disks', {}) if inventory else {}
     system_info['disk'] = disk_info
+    system_info['all_disk_space'] = round(sum(d['total'] for d in disk_info.values()), 2)
+    system_info['all_disk_usage'] = round(sum(d['used'] for d in disk_info.values()), 2)
 
     return system_info
 

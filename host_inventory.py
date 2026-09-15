@@ -85,11 +85,70 @@ def _docker_containers(output):
     ]
 
 
+def _host_disks(output):
+    """Group mounted filesystems by their parent host block device."""
+    try:
+        devices = json.loads(output).get("blockdevices", [])
+    except (ValueError, TypeError, AttributeError):
+        return {}
+
+    disks = {}
+    for device in devices:
+        if device.get("type") != "disk":
+            continue
+        path = device.get("path")
+        if not path or not str(path).startswith("/dev/"):
+            continue
+        try:
+            size = int(device.get("size") or 0)
+        except (TypeError, ValueError):
+            continue
+        if size <= 0:
+            continue
+        mounts = []
+        seen = set()
+        counted_devices = set()
+        used_bytes = 0
+
+        def visit(node):
+            nonlocal used_bytes
+            for mount in node.get("mountpoints") or []:
+                if not isinstance(mount, str) or not mount.startswith("/") or mount in seen:
+                    continue
+                seen.add(mount)
+                try:
+                    stats = os.statvfs(mount)
+                except OSError:
+                    continue
+                mounts.append(mount)
+                filesystem_device = node.get("path") or mount
+                if filesystem_device not in counted_devices:
+                    filesystem_size = stats.f_blocks * stats.f_frsize
+                    used_bytes += max(filesystem_size - stats.f_bfree * stats.f_frsize, 0)
+                    counted_devices.add(filesystem_device)
+            for child in node.get("children") or []:
+                visit(child)
+
+        visit(device)
+        gb = 1024 ** 3
+        total = round(size / gb, 2)
+        used = round(min(used_bytes, size) / gb, 2)
+        disks[path] = {
+            "device": path, "mountpoints": sorted(mounts),
+            "total": total, "used": used,
+            "free": round(max(size - used_bytes, 0) / gb, 2),
+            "percent": round(min(used_bytes / size * 100, 100), 1),
+        }
+    return disks
+
+
 def collect_host_inventory():
     docker_ok, docker_output = _run_checked(
         ["docker", "ps", "-a", "--format", "{{json .}}"], timeout=8)
     containers, published = _docker_containers(docker_output if docker_ok else "")
     ss_ok, ss_output = _run_checked(["ss", "-H", "-lntu"])
+    disks_output = _run(["lsblk", "--json", "--bytes", "--output",
+                         "PATH,TYPE,SIZE,MOUNTPOINTS"], timeout=8)
     versions = {}
     for name, command in VERSION_COMMANDS.items():
         if name == "OpenSSH" and Path("/usr/sbin/sshd").exists():
@@ -113,6 +172,7 @@ def collect_host_inventory():
         "containers_available": docker_ok,
         "versions": versions,
         "containers": containers,
+        "disks": _host_disks(disks_output),
     }
 
 

@@ -9,6 +9,24 @@ import host_inventory
 
 
 class HostInventoryTests(unittest.TestCase):
+    def test_disks_are_grouped_by_host_device_and_bind_mount_is_counted_once(self):
+        output = json.dumps({'blockdevices': [
+            {'path': '/dev/vda', 'type': 'disk', 'size': 100 * 1024 ** 3,
+             'children': [{'path': '/dev/vda1', 'type': 'part',
+                           'mountpoints': ['/', '/home']}]},
+            {'path': '/dev/vdb', 'type': 'disk', 'size': 200 * 1024 ** 3,
+             'children': [{'path': '/dev/vdb1', 'type': 'part',
+                           'mountpoints': ['/storage']}]},
+            {'path': '/dev/loop0', 'type': 'loop', 'size': 10 * 1024 ** 3,
+             'mountpoints': ['/container']},
+        ]})
+        stats = mock.Mock(f_blocks=100, f_bfree=60, f_frsize=1024 ** 3)
+        with mock.patch('host_inventory.os.statvfs', return_value=stats):
+            disks = host_inventory._host_disks(output)
+        self.assertEqual(set(disks), {'/dev/vda', '/dev/vdb'})
+        self.assertEqual(disks['/dev/vda']['mountpoints'], ['/', '/home'])
+        self.assertEqual(disks['/dev/vda']['used'], 40)
+
     def test_ss_parser_keeps_host_bind_addresses_and_protocols(self):
         output = (
             "tcp LISTEN 0 128 0.0.0.0:22 0.0.0.0:*\n"

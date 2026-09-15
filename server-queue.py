@@ -6,7 +6,8 @@ import logging
 
 if __name__ == "__main__":
     try:
-        if read_host_inventory(max_age_seconds=300) is None:
+        inventory = read_host_inventory(max_age_seconds=300)
+        if inventory is None or "disks" not in inventory:
             write_host_inventory()
     except OSError:
         logging.exception("Could not write host inventory")

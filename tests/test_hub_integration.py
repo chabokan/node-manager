@@ -174,29 +174,24 @@ class HubIntegrationTests(unittest.TestCase):
         self.assertTrue(any(row.cpu == 1 for row in day))
         self.assertLess(len(day), 121)
 
-    def test_disk_payload_keeps_mountpoints_and_deduplicates_total(self):
-        partitions = [mock.Mock(device='/dev/vda1', mountpoint='/'),
-                      mock.Mock(device='/dev/vda1', mountpoint='/home'),
-                      mock.Mock(device='/dev/vdb1', mountpoint='/storage')]
-        usage = [mock.Mock(total=100 * 1024 ** 3, used=40 * 1024 ** 3,
-                           free=60 * 1024 ** 3, percent=40),
-                 mock.Mock(total=100 * 1024 ** 3, used=40 * 1024 ** 3,
-                           free=60 * 1024 ** 3, percent=40),
-                 mock.Mock(total=200 * 1024 ** 3, used=20 * 1024 ** 3,
-                           free=180 * 1024 ** 3, percent=10)]
-        with mock.patch('api.helper.psutil') as psutil:
+    def test_disk_payload_uses_host_inventory_instead_of_container_mounts(self):
+        host_disks = {'/dev/vda': {'device': '/dev/vda', 'mountpoints': ['/'],
+                                  'total': 100, 'used': 40},
+                      '/dev/vdb': {'device': '/dev/vdb', 'mountpoints': ['/storage'],
+                                  'total': 200, 'used': 20}}
+        with mock.patch('api.helper.psutil') as psutil, \
+             mock.patch('api.helper.read_host_inventory', return_value={'disks': host_disks}):
             psutil.cpu_count.return_value = 4
             psutil.cpu_percent.return_value = 0
             psutil.virtual_memory.return_value = mock.Mock(total=8 * 1024 ** 3,
                 available=7 * 1024 ** 3, used=1 * 1024 ** 3, free=7 * 1024 ** 3,
                 percent=12.5)
-            psutil.disk_partitions.return_value = partitions
-            psutil.disk_usage.side_effect = usage
             info = get_system_info()
-        self.assertEqual(set(info['disk']), {'/', '/home', '/storage'})
-        self.assertEqual(info['disk']['/storage']['device'], '/dev/vdb1')
+        self.assertEqual(set(info['disk']), {'/dev/vda', '/dev/vdb'})
+        self.assertEqual(info['disk']['/dev/vdb']['mountpoints'], ['/storage'])
         self.assertEqual(info['all_disk_space'], 300)
         self.assertEqual(info['all_disk_usage'], 60)
+        psutil.disk_partitions.assert_not_called()
 
     def test_rejected_job_fetch_is_reported(self):
         self.db.add_all([Setting(key="token", value="token"),
