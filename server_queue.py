@@ -8,7 +8,7 @@ from core.clock import tehran_now, tehran_naive
 from api.helper import (set_job_run_in_hub, create_service, delete_service, service_action,
                         create_backup_task, normal_restore, limit_container_task,
                         mysql_restore, deploy_task)
-from core.db import get_db
+from core.db import SessionLocal
 
 logger = logging.getLogger(__name__)
 HOST_ONLY_JOBS = frozenset(("host_command", "normal_command", "update_core",
@@ -123,8 +123,5 @@ def run_pending_jobs(db, host_mode=True):
 
 
 if __name__ == "__main__":
-    db = next(get_db())
-    try:
+    with SessionLocal() as db:
         run_pending_jobs(db)
-    finally:
-        db.close()

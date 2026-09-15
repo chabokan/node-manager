@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 import crud
 from core.clock import tehran_now
 from core.config import settings
-from core.db import get_db
+from core.db import SessionLocal
 from models import ServiceUsage, ServerRootJob
 from urllib.parse import unquote
 import urllib.request
@@ -238,7 +238,6 @@ def container_run(image, name, envs, ports, volumes, ram, cpu, platform_command=
         command += f"-p {port}/tcp -p {port}/udp "
 
     cpu_count = os.cpu_count()
-    db = next(get_db())
     server_info = get_system_info()
     all_ram = server_info['ram']['total']
     all_cpu = server_info['cpu']['count']
@@ -728,23 +727,25 @@ def rebuild_container(data):
 
 def random_job_key(count):
     a_pass = get_pass(count)
-    db = next(get_db())
-    if crud.get_server_root_job(db, a_pass):
+    with SessionLocal() as db:
+        exists = crud.get_server_root_job(db, a_pass)
+    if exists:
         return random_job_key(count)
 
     return a_pass
 
 
 def limit_container_job(container_name, ram_limit, cpu_limit):
-    db = next(get_db())
+    job_key = random_job_key(64)
     data = {
         "container_name": container_name,
         "ram_limit": ram_limit,
         "cpu_limit": cpu_limit
     }
-    crud.create_server_root_job(db, ServerRootJob(name="limit_container", key=random_job_key(64),
-                                                  data=json.dumps(data),
-                                                  run_at=datetime.now() + timedelta(seconds=300)))
+    with SessionLocal() as db:
+        crud.create_server_root_job(db, ServerRootJob(name="limit_container", key=job_key,
+                                                      data=json.dumps(data),
+                                                      run_at=datetime.now() + timedelta(seconds=300)))
 
 
 def service_action(db, key, data):
