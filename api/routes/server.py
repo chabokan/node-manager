@@ -13,5 +13,5 @@ router = APIRouter()
 
 
 @router.get("/usages/")
-async def usage(db=Depends(get_db)):
-    return crud.get_all_server_usages(db)
+async def usage(period: str = "1h", db=Depends(get_db)):
+    return crud.get_server_usages_for_period(db, period)

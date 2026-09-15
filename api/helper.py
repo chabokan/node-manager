@@ -49,19 +49,26 @@ def get_system_info():
     disks = psutil.disk_partitions()
     system_info['all_disk_space'] = 0
     system_info['all_disk_usage'] = 0
+    seen_devices = set()
     for disk in disks:
-        total = byte_to_gb(psutil.disk_usage(disk.mountpoint).total)
-        used = byte_to_gb(psutil.disk_usage(disk.mountpoint).used)
-        disk_info[disk.device] = {
+        disk_usage = psutil.disk_usage(disk.mountpoint)
+        total = byte_to_gb(disk_usage.total)
+        used = byte_to_gb(disk_usage.used)
+        disk_info[disk.mountpoint] = {
+            'device': disk.device,
+            'mountpoint': disk.mountpoint,
             'total': total,
             'used': used,
-            'free': byte_to_gb(psutil.disk_usage(disk.mountpoint).free),
-            'percent': psutil.disk_usage(disk.mountpoint).percent
+            'free': byte_to_gb(disk_usage.free),
+            'percent': disk_usage.percent
         }
+        # Bind mounts expose the same filesystem at more than one path.
+        identity = disk.device or disk.mountpoint
+        if identity not in seen_devices:
+            system_info['all_disk_space'] += total
+            system_info['all_disk_usage'] += used
+            seen_devices.add(identity)
     system_info['disk'] = disk_info
-    for key, value in disk_info.items():
-        system_info['all_disk_space'] += value['total']
-        system_info['all_disk_usage'] += value['used']
 
     return system_info
 

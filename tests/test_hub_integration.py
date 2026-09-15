@@ -11,9 +11,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.helper import process_jobs
+from api.helper import get_system_info
 from api.routes import core
 from core.clock import tehran_now
-from models import Base, ServerRootJob, Setting
+from crud import get_server_usages_for_period
+from models import Base, ServerRootJob, ServerUsage, Setting
 from server_queue import run_pending_jobs
 
 
@@ -155,6 +157,46 @@ class HubIntegrationTests(unittest.TestCase):
                                 "run_at": "2026-09-15T12:20:00Z"}])
         job = self.db.query(ServerRootJob).filter_by(key="utc-job").first()
         self.assertEqual(job.run_at, datetime.datetime(2026, 9, 15, 15, 50))
+
+    def test_server_usage_period_filters_and_downsamples_history(self):
+        now = tehran_now()
+        self.db.add(ServerUsage(cpu=1, ram=1, disk=1,
+                                created=now - datetime.timedelta(hours=3)))
+        for minute in range(120):
+            self.db.add(ServerUsage(cpu=minute + 2, ram=1, disk=1,
+                                    created=now - datetime.timedelta(minutes=120 - minute)))
+        self.db.commit()
+
+        hour = get_server_usages_for_period(self.db, '1h')
+        day = get_server_usages_for_period(self.db, '24h')
+        self.assertTrue(hour)
+        self.assertTrue(all(row.created >= now - datetime.timedelta(hours=1) for row in hour))
+        self.assertTrue(any(row.cpu == 1 for row in day))
+        self.assertLess(len(day), 121)
+
+    def test_disk_payload_keeps_mountpoints_and_deduplicates_total(self):
+        partitions = [mock.Mock(device='/dev/vda1', mountpoint='/'),
+                      mock.Mock(device='/dev/vda1', mountpoint='/home'),
+                      mock.Mock(device='/dev/vdb1', mountpoint='/storage')]
+        usage = [mock.Mock(total=100 * 1024 ** 3, used=40 * 1024 ** 3,
+                           free=60 * 1024 ** 3, percent=40),
+                 mock.Mock(total=100 * 1024 ** 3, used=40 * 1024 ** 3,
+                           free=60 * 1024 ** 3, percent=40),
+                 mock.Mock(total=200 * 1024 ** 3, used=20 * 1024 ** 3,
+                           free=180 * 1024 ** 3, percent=10)]
+        with mock.patch('api.helper.psutil') as psutil:
+            psutil.cpu_count.return_value = 4
+            psutil.cpu_percent.return_value = 0
+            psutil.virtual_memory.return_value = mock.Mock(total=8 * 1024 ** 3,
+                available=7 * 1024 ** 3, used=1 * 1024 ** 3, free=7 * 1024 ** 3,
+                percent=12.5)
+            psutil.disk_partitions.return_value = partitions
+            psutil.disk_usage.side_effect = usage
+            info = get_system_info()
+        self.assertEqual(set(info['disk']), {'/', '/home', '/storage'})
+        self.assertEqual(info['disk']['/storage']['device'], '/dev/vdb1')
+        self.assertEqual(info['all_disk_space'], 300)
+        self.assertEqual(info['all_disk_usage'], 60)
 
     def test_rejected_job_fetch_is_reported(self):
         self.db.add_all([Setting(key="token", value="token"),

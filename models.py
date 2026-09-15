@@ -16,7 +16,7 @@ class ServerUsage(Base):
     ram = Column(Float)
     cpu = Column(Float)
     disk = Column(Float)
-    created = Column(DateTime)
+    created = Column(DateTime, index=True)
 
 
 class ServerRootJob(Base):

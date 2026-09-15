@@ -1,7 +1,7 @@
 import datetime
 
 from sqlalchemy.orm import Session
-from sqlalchemy import update
+from sqlalchemy import update, func, cast, Integer
 from core.clock import tehran_now
 from models import Setting, ServerUsage, ServerRootJob, ServiceUsage
 from typing import List
@@ -48,7 +48,7 @@ def create_server_usage(session: Session, request: ServerUsage) -> ServerUsage:
         ram=request.ram,
         cpu=request.cpu,
         disk=request.disk,
-        created=datetime.datetime.now()
+        created=tehran_now()
     )
     session.add(db_obj)
     session.commit()
@@ -67,6 +67,25 @@ def get_full_services_usages(session: Session) -> List[ServiceUsage]:
 def get_all_server_usages(session: Session) -> List[ServerUsage]:
     return session.query(ServerUsage).order_by(ServerUsage.created.desc()).limit(
         60).all()
+
+
+SERVER_USAGE_PERIODS = {
+    "1h": (3600, 30), "3h": (10800, 90), "12h": (43200, 360),
+    "24h": (86400, 720), "7d": (604800, 5040),
+    "14d": (1209600, 10080), "30d": (2592000, 21600),
+}
+
+
+def get_server_usages_for_period(session: Session, period: str) -> List[ServerUsage]:
+    duration, bucket_seconds = SERVER_USAGE_PERIODS.get(period, SERVER_USAGE_PERIODS["1h"])
+    cutoff = tehran_now() - datetime.timedelta(seconds=duration)
+    epoch = cast(func.strftime("%s", ServerUsage.created), Integer)
+    latest_ids = (session.query(func.max(ServerUsage.id))
+                  .filter(ServerUsage.created >= cutoff)
+                  .group_by(epoch - epoch % bucket_seconds))
+    return (session.query(ServerUsage)
+            .filter(ServerUsage.id.in_(latest_ids))
+            .order_by(ServerUsage.created.asc()).all())
 
 
 def get_server_locked_root_jobs(session: Session) -> List[ServerRootJob]:
