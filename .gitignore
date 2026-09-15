@@ -91,6 +91,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.update-core-state
+venv.candidate.*/
+venv.backup.*/
 
 
 # mypy

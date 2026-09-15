@@ -1,4 +1,4 @@
-ARG PYTHON_BASE_IMAGE=docker.chabokan.net/python:3.9-buster
+ARG PYTHON_BASE_IMAGE=docker.chabokan.net/python:3.9-trixie
 FROM ${PYTHON_BASE_IMAGE}
 
 ENV TZ=Asia/Tehran
