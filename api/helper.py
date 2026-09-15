@@ -17,6 +17,7 @@ from docker.errors import APIError
 from datetime import datetime, timedelta
 
 import crud
+from core.clock import tehran_now
 from core.config import settings
 from core.db import get_db
 from models import ServiceUsage, ServerRootJob
@@ -1114,12 +1115,12 @@ def process_jobs(db, jobs):
                     tehran_timezone = pytz.timezone("Asia/Tehran")
                     tehran_date = utc_date.astimezone(tehran_timezone)
 
-                    run_at = tehran_date
+                    run_at = tehran_date.replace(tzinfo=None)
                 except:
                     pass
 
                 if not run_at:
-                    run_at = datetime.now()
+                    run_at = tehran_now()
                 if not crud.get_server_root_job(db, pending_job['key']):
                     crud.create_server_root_job(db, ServerRootJob(name=pending_job['name'], key=pending_job['key'],
                                                                   data=json.dumps(pending_job['data']),
@@ -1135,7 +1136,7 @@ def process_jobs(db, jobs):
             elif pending_job['name'] == "normal_command":
                 if not crud.get_server_root_job(db, pending_job['key']):
                     crud.create_server_root_job(db, ServerRootJob(name="normal_command",
-                        key=pending_job['key'], data=json.dumps(pending_job['data']), run_at=datetime.now()))
+                        key=pending_job['key'], data=json.dumps(pending_job['data']), run_at=tehran_now()))
 
 
 def containers_usages(db):

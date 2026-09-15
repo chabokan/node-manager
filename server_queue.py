@@ -4,6 +4,7 @@ import logging
 import os
 
 import crud
+from core.clock import tehran_now, tehran_naive
 from api.helper import (set_job_run_in_hub, create_service, delete_service, service_action,
                         create_backup_task, normal_restore, limit_container_task,
                         mysql_restore, deploy_task)
@@ -64,7 +65,7 @@ def run_pending_jobs(db, host_mode=True):
     for job in crud.get_server_not_completed_and_pending_root_jobs(db):
         if not host_mode and job.name in HOST_ONLY_JOBS:
             continue
-        if job.run_at and job.run_at > datetime.datetime.now():
+        if job.run_at and tehran_naive(job.run_at) > tehran_now():
             continue
         if job.name == "create_backup" and len(crud.get_server_backup_locked(db)) >= 2:
             continue
@@ -90,7 +91,7 @@ def run_pending_jobs(db, host_mode=True):
             job = crud.get_server_root_job(db, job.key)
             if (job.run_count or 0) < 6:
                 job.run_count = (job.run_count or 0) + 1
-                job.run_at = datetime.datetime.now() + datetime.timedelta(minutes=job.run_count)
+                job.run_at = tehran_now() + datetime.timedelta(minutes=job.run_count)
                 job.locked = False
                 job.locked_at = None
                 db.commit()

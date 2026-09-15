@@ -6,6 +6,7 @@ import requests
 from fastapi_restful.tasks import repeat_every
 
 import crud
+from core.clock import tehran_now
 from api.helper import get_server_ip, get_system_info, cal_all_containers_stats, containers_usages
 from core.db import get_db
 from main import app
@@ -112,7 +113,7 @@ def reset_locked_root_jobs() -> None:
     if crud.get_setting(db, "token"):
         jobs = crud.get_server_locked_root_jobs(db)
         for job in jobs:
-            if job.locked_at and job.locked_at <= datetime.datetime.now() - datetime.timedelta(seconds=(60 * 30)):
+            if job.locked_at and job.locked_at <= tehran_now() - datetime.timedelta(seconds=(60 * 30)):
                 job.locked = False
                 job.locked_at = None
                 db.commit()

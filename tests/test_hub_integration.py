@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import json
+import os
+import time
 import unittest
 from unittest import mock
 
@@ -10,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api.helper import process_jobs
 from api.routes import core
+from core.clock import tehran_now
 from models import Base, ServerRootJob, Setting
 from server_queue import run_pending_jobs
 
@@ -146,6 +149,13 @@ class HubIntegrationTests(unittest.TestCase):
         command.assert_not_called()
         self.assertIsNotNone(self.db.query(ServerRootJob).filter_by(key="job1").first().run_at)
 
+    def test_hub_utc_run_at_is_saved_as_naive_tehran_time(self):
+        process_jobs(self.db, [{"name": "host_command", "status": "pending",
+                                "key": "utc-job", "data": {"command": "true"},
+                                "run_at": "2026-09-15T12:20:00Z"}])
+        job = self.db.query(ServerRootJob).filter_by(key="utc-job").first()
+        self.assertEqual(job.run_at, datetime.datetime(2026, 9, 15, 15, 50))
+
     def test_rejected_job_fetch_is_reported(self):
         self.db.add_all([Setting(key="token", value="token"),
                          Setting(key="base_hub_url", value="hub.example")])
@@ -202,6 +212,30 @@ class HubIntegrationTests(unittest.TestCase):
         command.assert_not_called()
         self.assertEqual(self.db.query(ServerRootJob).filter_by(key="update1").first().status,
                          "pending")
+
+    def test_host_worker_runs_tehran_due_job_even_when_host_uses_utc(self):
+        previous_tz = os.environ.get("TZ")
+        try:
+            os.environ["TZ"] = "UTC"
+            time.tzset()
+            due = tehran_now() - datetime.timedelta(minutes=1)
+            self.assertGreater(due, datetime.datetime.now())
+            self.db.add(ServerRootJob(name="host_command", key="tehran-due",
+                                      data='{"command": "true"}', status="pending",
+                                      run_at=due, locked=False, run_count=0))
+            self.db.commit()
+            with mock.patch("server_queue.os.system", return_value=0) as command, \
+                 mock.patch("server_queue.set_job_run_in_hub"):
+                run_pending_jobs(self.db)
+            command.assert_called_once()
+            self.assertEqual(self.db.query(ServerRootJob).filter_by(key="tehran-due").first().status,
+                             "success")
+        finally:
+            if previous_tz is None:
+                os.environ.pop("TZ", None)
+            else:
+                os.environ["TZ"] = previous_tz
+            time.tzset()
 
     def test_failed_host_update_is_not_reported_as_success(self):
         data = {key: "value" for key in ("technical_name", "backup_server_url",

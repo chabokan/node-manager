@@ -2,6 +2,7 @@ import datetime
 
 from sqlalchemy.orm import Session
 from sqlalchemy import update
+from core.clock import tehran_now
 from models import Setting, ServerUsage, ServerRootJob, ServiceUsage
 from typing import List
 
@@ -94,7 +95,7 @@ def claim_server_root_job(session: Session, job: ServerRootJob) -> bool:
         ServerRootJob.status == "pending",
         ServerRootJob.completed_at.is_(None),
         ServerRootJob.locked.is_(False),
-    ).values(locked=True, locked_at=datetime.datetime.now()))
+    ).values(locked=True, locked_at=tehran_now()))
     session.commit()
     session.refresh(job)
     return result.rowcount == 1
@@ -102,7 +103,7 @@ def claim_server_root_job(session: Session, job: ServerRootJob) -> bool:
 
 def fail_server_root_job(session: Session, job: ServerRootJob) -> None:
     job.status = "failed"
-    job.completed_at = datetime.datetime.now()
+    job.completed_at = tehran_now()
     job.locked = False
     session.commit()
 
@@ -116,7 +117,7 @@ def create_server_root_job(session: Session, request: ServerRootJob) -> ServerRo
         run_count=0,
         locked=False,
         status="pending",
-        created=datetime.datetime.now()
+        created=tehran_now()
     )
     session.add(db_obj)
     session.commit()
@@ -126,7 +127,7 @@ def create_server_root_job(session: Session, request: ServerRootJob) -> ServerRo
 
 def set_server_root_job_run(session: Session, id) -> ServerRootJob:
     server_root_job = session.query(ServerRootJob).filter(ServerRootJob.id == id).first()
-    server_root_job.completed_at = datetime.datetime.now()
+    server_root_job.completed_at = tehran_now()
     if server_root_job.run_count:
         server_root_job.run_count += 1
     else:
