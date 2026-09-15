@@ -12,6 +12,7 @@ from core.db import get_db
 from main import app
 from models import ServerUsage
 from server_queue import run_pending_jobs
+from host_inventory import read_host_inventory
 
 
 @app.on_event("startup")
@@ -42,6 +43,9 @@ def server_sync() -> None:
             "disk_data": server_info['disk'],
             "services-usages": containers_usages(db)
         }
+        host_inventory = read_host_inventory()
+        if host_inventory:
+            data["host_inventory"] = host_inventory
         headers = {
             "Content-Type": "application/json",
         }

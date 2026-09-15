@@ -15,6 +15,16 @@ HOST_ONLY_JOBS = frozenset(("host_command", "normal_command", "update_core",
                             "debug_on", "debug_off", "restart_server", "delete_core"))
 
 
+def failure_reason_for(job_name):
+    if job_name == "update_core":
+        return "core_update_failed"
+    if job_name in ("host_command", "normal_command"):
+        return "command_failed"
+    if job_name in ("create_backup", "restore_backup"):
+        return "backup_failed"
+    return "operation_failed"
+
+
 def execute_job(db, job):
     data = json.loads(job.data) if job.data else {}
     if job.name == "service_create":
@@ -98,7 +108,8 @@ def run_pending_jobs(db, host_mode=True):
             else:
                 crud.fail_server_root_job(db, job)
                 try:
-                    set_job_run_in_hub(db, job.key, "failed")
+                    set_job_run_in_hub(db, job.key, "failed",
+                                       failure_reason=failure_reason_for(job.name))
                 except Exception:
                     logger.exception("Could not report failed job %s", job.key)
             continue

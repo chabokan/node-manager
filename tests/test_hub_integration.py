@@ -244,6 +244,20 @@ class HubIntegrationTests(unittest.TestCase):
         report.assert_not_called()
         self.assertEqual(self.db.query(ServerRootJob).filter_by(key="job1").first().status, "pending")
 
+    def test_final_failed_command_reports_safe_reason(self):
+        self.db.add(ServerRootJob(name="host_command", key="job-final",
+                                  data='{"command": "false"}', status="pending",
+                                  run_at=datetime.datetime.now() - datetime.timedelta(seconds=1),
+                                  locked=False, run_count=6))
+        self.db.commit()
+        with mock.patch("server_queue.os.system", return_value=1), \
+             mock.patch("server_queue.set_job_run_in_hub") as report:
+            run_pending_jobs(self.db)
+        report.assert_called_once_with(self.db, "job-final", "failed",
+                                       failure_reason="command_failed")
+        self.assertEqual(self.db.query(ServerRootJob).filter_by(key="job-final").first().status,
+                         "failed")
+
     def test_web_worker_leaves_host_update_job_for_host_cron(self):
         self.db.add(ServerRootJob(name="update_core", key="update1", data="{}",
                                   status="pending", run_at=datetime.datetime.now(),
