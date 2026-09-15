@@ -52,6 +52,8 @@ async def connect(token: Optional[str] = None, hub_url: Optional[str] = None,
         return {"success": False, "message": "incomplete connection uses another token"}
 
     server_info = get_system_info()
+    if server_info.get('disk_available') is False:
+        raise HTTPException(status_code=503, detail="Host disk inventory is not ready")
     ip = get_server_ip()
     data = {
         "token": token,

@@ -36,6 +36,8 @@ def server_sync() -> None:
         services_usages = containers_usages(db)
     if token:
         server_info = get_system_info()
+        if server_info.get('disk_available') is False:
+            return
         ip = get_server_ip()
         data = {
             "token": token,
@@ -74,6 +76,8 @@ def monitor_server_usage() -> None:
         enabled = bool(crud.get_setting(db, "token"))
     if enabled:
         server_info = get_system_info()
+        if server_info.get('disk_available') is False:
+            return
         with SessionLocal() as db:
             crud.create_server_usage(db,
                                      ServerUsage(

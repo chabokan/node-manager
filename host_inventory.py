@@ -108,11 +108,16 @@ def _host_disks(output):
         mounts = []
         seen = set()
         counted_devices = set()
+        filesystem_bytes = 0
         used_bytes = 0
+        available_bytes = 0
 
         def visit(node):
-            nonlocal used_bytes
-            for mount in node.get("mountpoints") or []:
+            nonlocal filesystem_bytes, used_bytes, available_bytes
+            node_mounts = node.get("mountpoints")
+            if node_mounts is None:
+                node_mounts = [node.get("mountpoint")]
+            for mount in node_mounts:
                 if not isinstance(mount, str) or not mount.startswith("/") or mount in seen:
                     continue
                 seen.add(mount)
@@ -123,21 +128,28 @@ def _host_disks(output):
                 mounts.append(mount)
                 filesystem_device = node.get("path") or mount
                 if filesystem_device not in counted_devices:
-                    filesystem_size = stats.f_blocks * stats.f_frsize
-                    used_bytes += max(filesystem_size - stats.f_bfree * stats.f_frsize, 0)
+                    block_size = stats.f_frsize
+                    filesystem_size = stats.f_blocks * block_size
+                    filesystem_bytes += filesystem_size
+                    used_bytes += max(filesystem_size - stats.f_bfree * block_size, 0)
+                    available_bytes += max(stats.f_bavail * block_size, 0)
                     counted_devices.add(filesystem_device)
             for child in node.get("children") or []:
                 visit(child)
 
         visit(device)
         gb = 1024 ** 3
-        total = round(size / gb, 2)
-        used = round(min(used_bytes, size) / gb, 2)
+        usage_available = bool(counted_devices)
+        total = round((filesystem_bytes if usage_available else size) / gb, 2)
+        used = round(used_bytes / gb, 2)
+        free = round(available_bytes / gb, 2)
         disks[path] = {
             "device": path, "mountpoints": sorted(mounts),
-            "total": total, "used": used,
-            "free": round(max(size - used_bytes, 0) / gb, 2),
-            "percent": round(min(used_bytes / size * 100, 100), 1),
+            "capacity": round(size / gb, 2),
+            "usage_available": usage_available,
+            "total": total, "used": used, "free": free,
+            "percent": round(used_bytes / (used_bytes + available_bytes) * 100, 1)
+            if usage_available and used_bytes + available_bytes else 0,
         }
     return disks
 
@@ -148,7 +160,11 @@ def collect_host_inventory():
     containers, published = _docker_containers(docker_output if docker_ok else "")
     ss_ok, ss_output = _run_checked(["ss", "-H", "-lntu"])
     disks_output = _run(["lsblk", "--json", "--bytes", "--output",
-                         "PATH,TYPE,SIZE,MOUNTPOINTS"], timeout=8)
+                         "NAME,PATH,TYPE,SIZE,MOUNTPOINTS"], timeout=8)
+    if not disks_output:
+        # Fall back when this util-linux release lacks MOUNTPOINTS.
+        disks_output = _run(["lsblk", "--json", "--bytes", "--output",
+                             "NAME,PATH,TYPE,SIZE,MOUNTPOINT"], timeout=8)
     versions = {}
     for name, command in VERSION_COMMANDS.items():
         if name == "OpenSSH" and Path("/usr/sbin/sshd").exists():
@@ -178,6 +194,9 @@ def collect_host_inventory():
 
 def write_host_inventory():
     inventory = collect_host_inventory()
+    if not inventory["disks"] or not any(
+            disk["usage_available"] for disk in inventory["disks"].values()):
+        raise OSError("Host disk inventory has no mounted filesystem")
     descriptor, temporary = tempfile.mkstemp(prefix=".host-inventory-",
                                               dir=INVENTORY_PATH.parent)
     try:

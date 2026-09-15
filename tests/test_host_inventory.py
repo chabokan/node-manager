@@ -9,6 +9,45 @@ import host_inventory
 
 
 class HostInventoryTests(unittest.TestCase):
+    def test_old_lsblk_mountpoint_column_is_supported(self):
+        output = json.dumps({'blockdevices': [
+            {'path': '/dev/vda', 'type': 'disk', 'size': 100 * 1024 ** 3,
+             'children': [{'path': '/dev/vda1', 'type': 'part',
+                           'mountpoint': '/'}]}
+        ]})
+        stats = mock.Mock(f_blocks=100, f_bfree=60, f_bavail=60,
+                          f_frsize=1024 ** 3)
+        with mock.patch('host_inventory.os.statvfs', return_value=stats):
+            disks = host_inventory._host_disks(output)
+        self.assertEqual(disks['/dev/vda']['mountpoints'], ['/'])
+        self.assertEqual(disks['/dev/vda']['used'], 40)
+
+    def test_collect_retries_lsblk_without_mountpoints_column(self):
+        output = json.dumps({'blockdevices': [
+            {'path': '/dev/vda', 'type': 'disk', 'size': 100 * 1024 ** 3,
+             'children': [{'path': '/dev/vda1', 'type': 'part',
+                           'mountpoint': '/'}]}]})
+        commands = []
+
+        def run(command, timeout=4):
+            commands.append(command)
+            if command[:1] == ['lsblk'] and 'MOUNTPOINTS' not in command[-1]:
+                return output
+            return ''
+
+        with mock.patch('host_inventory._run', side_effect=run), \
+             mock.patch('host_inventory._run_checked', return_value=(False, '')), \
+             mock.patch('host_inventory.os.statvfs', return_value=mock.Mock(
+                 f_blocks=100, f_bfree=60, f_bavail=60,
+                 f_frsize=1024 ** 3)):
+            inventory = host_inventory.collect_host_inventory()
+        self.assertIn('/dev/vda', inventory['disks'])
+        self.assertEqual(inventory['disks']['/dev/vda']['used'], 40)
+        self.assertEqual([command[-1] for command in commands
+                          if command[:1] == ['lsblk']],
+                         ['NAME,PATH,TYPE,SIZE,MOUNTPOINTS',
+                          'NAME,PATH,TYPE,SIZE,MOUNTPOINT'])
+
     def test_disks_are_grouped_by_host_device_and_bind_mount_is_counted_once(self):
         output = json.dumps({'blockdevices': [
             {'path': '/dev/vda', 'type': 'disk', 'size': 100 * 1024 ** 3,
@@ -20,12 +59,40 @@ class HostInventoryTests(unittest.TestCase):
             {'path': '/dev/loop0', 'type': 'loop', 'size': 10 * 1024 ** 3,
              'mountpoints': ['/container']},
         ]})
-        stats = mock.Mock(f_blocks=100, f_bfree=60, f_frsize=1024 ** 3)
+        stats = mock.Mock(f_blocks=100, f_bfree=60, f_bavail=60,
+                          f_frsize=1024 ** 3)
         with mock.patch('host_inventory.os.statvfs', return_value=stats):
             disks = host_inventory._host_disks(output)
         self.assertEqual(set(disks), {'/dev/vda', '/dev/vdb'})
         self.assertEqual(disks['/dev/vda']['mountpoints'], ['/', '/home'])
         self.assertEqual(disks['/dev/vda']['used'], 40)
+
+    def test_disk_capacity_is_separate_from_filesystem_usage(self):
+        output = json.dumps({'blockdevices': [
+            {'path': '/dev/sda', 'type': 'disk', 'size': 52 * 1024 ** 3,
+             'children': [{'path': '/dev/sda1', 'type': 'part',
+                           'mountpoints': ['/']}]}
+        ]})
+        # Mirrors df: a 51 GiB filesystem with 11 GiB used and 40 GiB available.
+        stats = mock.Mock(f_blocks=51, f_bfree=40, f_bavail=40,
+                          f_frsize=1024 ** 3)
+        with mock.patch('host_inventory.os.statvfs', return_value=stats):
+            disk = host_inventory._host_disks(output)['/dev/sda']
+        self.assertEqual((disk['capacity'], disk['total'], disk['used'],
+                          disk['free'], disk['percent']), (52, 51, 11, 40, 21.6))
+        self.assertTrue(disk['usage_available'])
+
+    def test_inventory_without_mounted_filesystem_does_not_replace_good_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'inventory.json'
+            path.write_text('{"good": true}')
+            with mock.patch.object(host_inventory, 'INVENTORY_PATH', path), \
+                 mock.patch.object(host_inventory, 'collect_host_inventory',
+                                   return_value={'disks': {'/dev/sda': {
+                                       'usage_available': False}}}):
+                with self.assertRaises(OSError):
+                    host_inventory.write_host_inventory()
+            self.assertEqual(path.read_text(), '{"good": true}')
 
     def test_ss_parser_keeps_host_bind_addresses_and_protocols(self):
         output = (

@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from api.helper import process_jobs
 from api.helper import get_system_info
 from api.routes import core
+from core import cron
 from core.clock import tehran_now
 from crud import get_server_usages_for_period
 from models import Base, ServerRootJob, ServerUsage, Setting
@@ -109,6 +110,25 @@ class HubIntegrationTests(unittest.TestCase):
             status, result = self.request_connect(
                 {"token": "token", "hub_url": "http://hub.example.com"})
         self.assertEqual(status, 422)
+        post.assert_not_called()
+
+    def test_missing_host_disks_do_not_connect_or_sync_zero(self):
+        missing = dict(self.server_info(), disk_available=False)
+        with mock.patch.object(core, "get_system_info", return_value=missing), \
+             mock.patch.object(core.requests, "post") as post:
+            status, response = self.request_connect({"token": "token"})
+        self.assertEqual(status, 503)
+        self.assertEqual(response["detail"], "Host disk inventory is not ready")
+        post.assert_not_called()
+
+        self.db.add_all([Setting(key="token", value="token"),
+                         Setting(key="base_hub_url", value="hub.example")])
+        self.db.commit()
+        with mock.patch.object(cron, "SessionLocal", return_value=self.db), \
+             mock.patch.object(cron, "containers_usages", return_value={}), \
+             mock.patch.object(cron, "get_system_info", return_value=missing), \
+             mock.patch.object(cron.requests, "post") as post:
+            asyncio.run(cron.server_sync())
         post.assert_not_called()
 
     def test_rejected_connection_does_not_store_token(self):

@@ -63,6 +63,12 @@ fi
 docker compose pull web
 git pull --ff-only
 new_revision=$(git rev-parse HEAD)
+# The mounted web process reads this host-generated file. Refresh it before
+# restarting the container so the first sync has real disk data.
+if [[ -f host_inventory.py ]] &&
+   ! python3 -c 'from host_inventory import write_host_inventory; write_host_inventory()'; then
+    echo "WARN: host disk inventory unavailable; disk sync will wait for the host worker" >&2
+fi
 new_image_name=$(docker compose config --images web)
 [[ -n "$new_image_name" ]] || { echo "No web image in updated Compose config" >&2; exit 1; }
 if [[ "$new_image_name" != "$old_image_name" ]]; then

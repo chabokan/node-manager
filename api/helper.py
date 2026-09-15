@@ -49,8 +49,11 @@ def get_system_info():
     # so only the inventory gathered by the host cron worker is authoritative.
     inventory = read_host_inventory()
     disk_info = inventory.get('disks', {}) if inventory else {}
+    system_info['disk_available'] = any(d.get('usage_available', bool(d.get('mountpoints')))
+                                        for d in disk_info.values())
     system_info['disk'] = disk_info
-    system_info['all_disk_space'] = round(sum(d['total'] for d in disk_info.values()), 2)
+    system_info['all_disk_space'] = round(sum(d.get('capacity', d['total'])
+                                              for d in disk_info.values()), 2)
     system_info['all_disk_usage'] = round(sum(d['used'] for d in disk_info.values()), 2)
 
     return system_info
