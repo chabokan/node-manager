@@ -71,11 +71,11 @@ class HostAdminTests(unittest.TestCase):
             host_admin.application_action("nginx; reboot", "install")
         run.assert_not_called()
 
-    def test_openssh_is_reported_and_protected(self):
+    def test_openssh_is_reported_and_can_be_managed(self):
         self.assertIn("openssh", host_admin.APPLICATIONS)
-        for action in ("stop", "uninstall"):
-            with self.assertRaises(ValueError):
-                host_admin.application_action("openssh", action)
+        with mock.patch.object(host_admin, "_run") as run:
+            host_admin.application_action("openssh", "stop")
+        run.assert_called_once_with(["systemctl", "stop", "ssh"], timeout=60)
 
     def test_temporary_root_ftp_is_configured_and_scheduled(self):
         with tempfile.TemporaryDirectory() as directory:

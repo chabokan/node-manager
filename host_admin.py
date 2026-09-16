@@ -54,7 +54,7 @@ APPLICATIONS = {
     "tmux": {"title": "tmux", "package": "tmux", "binary": "tmux"},
     "unzip": {"title": "Unzip", "package": "unzip", "binary": "unzip"},
     "openssh": {"title": "OpenSSH", "package": "openssh-server", "binary": "/usr/sbin/sshd",
-                "service": "ssh", "protected": True},
+                "service": "ssh"},
 }
 
 
