@@ -71,6 +71,60 @@ class HostAdminTests(unittest.TestCase):
             host_admin.application_action("nginx; reboot", "install")
         run.assert_not_called()
 
+    def test_openssh_is_reported_and_protected(self):
+        self.assertIn("openssh", host_admin.APPLICATIONS)
+        for action in ("stop", "uninstall"):
+            with self.assertRaises(ValueError):
+                host_admin.application_action("openssh", action)
+
+    def test_temporary_root_ftp_is_configured_and_scheduled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "vsftpd.conf"
+            chroot = root / "vsftpd.chroot_list"
+            ftpusers = root / "ftpusers"
+            user_list = root / "user_list"
+            state = root / "state.json"
+            service_unit = root / "root-ftp.service"
+            timer_unit = root / "root-ftp.timer"
+            config.write_text("listen=YES\n#chroot_list_enable=NO\n")
+            ftpusers.write_text("root\nbackup\n")
+            user_list.write_text("root\n")
+            with mock.patch.multiple(host_admin, VSFTPD_CONFIG=config,
+                                     VSFTPD_CHROOT_LIST=chroot, FTPUSERS=ftpusers,
+                                     VSFTPD_USER_LIST=user_list, ROOT_FTP_STATE=state,
+                                     ROOT_FTP_SERVICE_UNIT=service_unit,
+                                     ROOT_FTP_TIMER_UNIT=timer_unit), \
+                 mock.patch.object(host_admin, "_run", return_value=mock.Mock(returncode=0)) as run:
+                host_admin.enable_root_ftp()
+            self.assertIn("chroot_list_enable=YES", config.read_text())
+            self.assertIn(f"chroot_list_file={chroot}", config.read_text())
+            self.assertIn("root", chroot.read_text().splitlines())
+            self.assertNotIn("root", ftpusers.read_text().splitlines())
+            self.assertIn("Persistent=true", timer_unit.read_text())
+            self.assertTrue(any(call.args[0][:3] == ["systemctl", "enable", "--now"]
+                                for call in run.call_args_list))
+
+    def test_disabling_root_ftp_blocks_root_again(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ftpusers = root / "ftpusers"
+            user_list = root / "user_list"
+            state = root / "state.json"
+            ftpusers.write_text("backup\n")
+            user_list.write_text("")
+            with mock.patch.multiple(host_admin, FTPUSERS=ftpusers,
+                                     VSFTPD_USER_LIST=user_list, ROOT_FTP_STATE=state), \
+                 mock.patch.object(host_admin, "_run", return_value=mock.Mock(returncode=0)):
+                host_admin.disable_root_ftp()
+            self.assertIn("root", ftpusers.read_text().splitlines())
+            self.assertIn("root", user_list.read_text().splitlines())
+
+    def test_vsftpd_allowlist_mode_is_handled_without_inverting_access(self):
+        config = "userlist_enable=YES\nuserlist_deny=NO\n"
+        self.assertTrue(host_admin._config_bool(config, "userlist_enable", False))
+        self.assertFalse(host_admin._config_bool(config, "userlist_deny", True))
+
 
 if __name__ == "__main__":
     unittest.main()

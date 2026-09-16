@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -16,6 +17,14 @@ DNS_STATE = Path("/etc/chabokan-manager/nameservers.json")
 RESOLV_CONF = Path("/etc/resolv.conf")
 FIREWALL_STATE = Path("/etc/chabokan-manager/firewall.json")
 FIREWALL_CHAIN = "CHABOKAN-INPUT"
+VSFTPD_CONFIG = Path("/etc/vsftpd.conf")
+VSFTPD_CHROOT_LIST = Path("/etc/vsftpd.chroot_list")
+FTPUSERS = Path("/etc/ftpusers")
+VSFTPD_USER_LIST = Path("/etc/vsftpd.user_list")
+ROOT_FTP_STATE = Path("/etc/chabokan-manager/root-ftp.json")
+ROOT_FTP_TIMER = "chabokan-root-ftp-expiry"
+ROOT_FTP_SERVICE_UNIT = Path(f"/etc/systemd/system/{ROOT_FTP_TIMER}.service")
+ROOT_FTP_TIMER_UNIT = Path(f"/etc/systemd/system/{ROOT_FTP_TIMER}.timer")
 
 APPLICATIONS = {
     "nginx": {"title": "Nginx", "package": "nginx", "binary": "nginx", "service": "nginx"},
@@ -44,6 +53,8 @@ APPLICATIONS = {
     "jq": {"title": "jq", "package": "jq", "binary": "jq"},
     "tmux": {"title": "tmux", "package": "tmux", "binary": "tmux"},
     "unzip": {"title": "Unzip", "package": "unzip", "binary": "unzip"},
+    "openssh": {"title": "OpenSSH", "package": "openssh-server", "binary": "/usr/sbin/sshd",
+                "service": "ssh", "protected": True},
 }
 
 
@@ -69,6 +80,131 @@ def _atomic_write(path, content, mode=0o600):
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def _set_config_value(content, key, value):
+    """Set a single vsftpd key without leaving active duplicate directives."""
+    lines = []
+    found = False
+    for line in content.splitlines():
+        candidate = line.strip().lstrip("#").strip()
+        if candidate.split("=", 1)[0].strip() == key and "=" in candidate:
+            if not found:
+                lines.append(f"{key}={value}")
+                found = True
+            continue
+        lines.append(line)
+    if not found:
+        lines.append(f"{key}={value}")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _config_bool(content, key, default):
+    result = default
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#") or "=" not in stripped:
+            continue
+        name, value = stripped.split("=", 1)
+        if name.strip() == key:
+            result = value.strip().upper() == "YES"
+    return result
+
+
+def _set_list_membership(path, value, present):
+    try:
+        original = path.read_text(errors="replace")
+    except FileNotFoundError:
+        original = ""
+    lines = original.splitlines()
+    filtered = [line for line in lines if line.strip() != value]
+    if present:
+        filtered.append(value)
+    _atomic_write(path, "\n".join(filtered).rstrip() + "\n", 0o644)
+
+
+def _restart_vsftpd():
+    _run(["systemctl", "restart", "vsftpd"], timeout=30)
+
+
+def disable_root_ftp():
+    """Revoke root FTP login. Safe and idempotent, including after a reboot."""
+    _run(["systemctl", "disable", "--now", f"{ROOT_FTP_TIMER}.timer"], check=False)
+    _set_list_membership(FTPUSERS, "root", True)
+    if VSFTPD_USER_LIST.exists():
+        try:
+            config = VSFTPD_CONFIG.read_text(errors="replace")
+        except OSError:
+            config = ""
+        allowlist = (_config_bool(config, "userlist_enable", False) and
+                     not _config_bool(config, "userlist_deny", True))
+        _set_list_membership(VSFTPD_USER_LIST, "root", not allowlist)
+    _atomic_write(ROOT_FTP_STATE, json.dumps({"enabled": False}, separators=(",", ":")))
+    _restart_vsftpd()
+    return {"enabled": False}
+
+
+def get_root_ftp():
+    try:
+        state = json.loads(ROOT_FTP_STATE.read_text())
+        expires_at = float(state.get("expires_at") or 0)
+        enabled = state.get("enabled") is True and expires_at > datetime.now(timezone.utc).timestamp()
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        enabled, expires_at = False, 0
+    return {"enabled": enabled, "expires_at": expires_at if enabled else None}
+
+
+def enable_root_ftp(duration_seconds=3600):
+    """Allow root through vsftpd temporarily and arrange host-side revocation."""
+    duration = int(duration_seconds)
+    if duration != 3600:
+        raise ValueError("Root FTP access may only be enabled for one hour")
+    try:
+        config = VSFTPD_CONFIG.read_text(errors="replace")
+    except OSError as exc:
+        raise RuntimeError("vsftpd is not configured") from exc
+    config = _set_config_value(config, "chroot_list_enable", "YES")
+    config = _set_config_value(config, "chroot_list_file", str(VSFTPD_CHROOT_LIST))
+    expires_at = datetime.now(timezone.utc).timestamp() + duration
+    try:
+        _atomic_write(VSFTPD_CONFIG, config, 0o644)
+        _set_list_membership(VSFTPD_CHROOT_LIST, "root", True)
+        # Arm the persistent deadline before removing any root login block.
+        deadline = datetime.fromtimestamp(expires_at, timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        _atomic_write(ROOT_FTP_SERVICE_UNIT, """[Unit]
+Description=Revoke temporary Chabokan root FTP access
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /var/ch-manager/host_admin.py --disable-root-ftp
+""", 0o644)
+        _atomic_write(ROOT_FTP_TIMER_UNIT, f"""[Unit]
+Description=One-hour Chabokan root FTP deadline
+
+[Timer]
+OnCalendar={deadline}
+Persistent=true
+AccuracySec=1s
+Unit={ROOT_FTP_TIMER}.service
+
+[Install]
+WantedBy=timers.target
+""", 0o644)
+        _run(["systemctl", "daemon-reload"])
+        _run(["systemctl", "enable", "--now", f"{ROOT_FTP_TIMER}.timer"])
+        _run(["systemctl", "restart", f"{ROOT_FTP_TIMER}.timer"])
+        _set_list_membership(FTPUSERS, "root", False)
+        if VSFTPD_USER_LIST.exists():
+            allowlist = (_config_bool(config, "userlist_enable", False) and
+                         not _config_bool(config, "userlist_deny", True))
+            _set_list_membership(VSFTPD_USER_LIST, "root", allowlist)
+        _atomic_write(ROOT_FTP_STATE, json.dumps(
+            {"enabled": True, "expires_at": expires_at}, separators=(",", ":")))
+        _restart_vsftpd()
+    except Exception:
+        disable_root_ftp()
+        raise
+    return {"enabled": True, "expires_at": expires_at}
 
 
 def _validate_nameservers(values):
@@ -306,4 +442,16 @@ def execute_host_admin_job(name, data):
         return set_firewall(data)
     if name == "server_application_action":
         return application_action(data.get("application"), data.get("action"))
+    if name == "server_root_ftp_enable":
+        return enable_root_ftp(data.get("duration_seconds", 3600))
+    if name == "server_root_ftp_disable":
+        return disable_root_ftp()
     raise ValueError("Unsupported host administration job")
+
+
+if __name__ == "__main__":
+    import sys
+    if sys.argv[1:] == ["--disable-root-ftp"]:
+        disable_root_ftp()
+    else:
+        raise SystemExit("Unsupported command")

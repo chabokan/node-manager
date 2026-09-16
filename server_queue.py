@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 HOST_ONLY_JOBS = frozenset(("host_command", "normal_command", "update_core",
                             "debug_on", "debug_off", "restart_server", "delete_core",
                             "server_nameservers_set", "server_firewall_set",
-                            "server_application_action"))
+                            "server_application_action", "server_root_ftp_enable",
+                            "server_root_ftp_disable"))
 
 
 def failure_reason_for(job_name):
@@ -72,7 +73,8 @@ def execute_job(db, job):
         if os.system("cd /var/ch-manager/ && docker compose down") != 0:
             raise RuntimeError("Core deletion failed")
     elif job.name in ("server_nameservers_set", "server_firewall_set",
-                      "server_application_action"):
+                      "server_application_action", "server_root_ftp_enable",
+                      "server_root_ftp_disable"):
         execute_host_admin_job(job.name, data)
         try:
             write_host_inventory()

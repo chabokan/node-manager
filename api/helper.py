@@ -1101,7 +1101,8 @@ def process_jobs(db, jobs):
                                        'host_command', 'delete_core', 'debug_on', 'debug_off', 'create_backup',
                                        'restore_backup', 'limit_container', 'update_core', 'deploy_service',
                                        'server_nameservers_set', 'server_firewall_set',
-                                       'server_application_action']:
+                                       'server_application_action', 'server_root_ftp_enable',
+                                       'server_root_ftp_disable']:
 
                 run_at = ""
                 try:

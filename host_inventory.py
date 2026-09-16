@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
-from host_admin import application_inventory, get_firewall, get_nameservers
+from host_admin import application_inventory, get_firewall, get_nameservers, get_root_ftp
 
 
 INVENTORY_PATH = Path(__file__).resolve().parent / ".host-inventory.json"
@@ -266,6 +266,7 @@ def collect_host_inventory():
         "versions": versions,
         "nameservers": get_nameservers(),
         "firewall": get_firewall(),
+        "root_ftp": get_root_ftp(),
         "applications": application_inventory(versions),
         "network": collect_network_inventory(),
         "containers": containers,
