@@ -1099,7 +1099,9 @@ def process_jobs(db, jobs):
         for pending_job in pending_jobs:
             if pending_job['name'] in ["restart_server", "service_create", "service_delete", 'service_action',
                                        'host_command', 'delete_core', 'debug_on', 'debug_off', 'create_backup',
-                                       'restore_backup', 'limit_container', 'update_core', 'deploy_service']:
+                                       'restore_backup', 'limit_container', 'update_core', 'deploy_service',
+                                       'server_nameservers_set', 'server_firewall_set',
+                                       'server_application_action']:
 
                 run_at = ""
                 try:

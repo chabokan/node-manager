@@ -126,6 +126,16 @@ class HostInventoryTests(unittest.TestCase):
             with mock.patch.object(host_inventory, "INVENTORY_PATH", path):
                 self.assertIsNone(host_inventory.read_host_inventory())
 
+    def test_management_state_is_included_in_inventory(self):
+        with mock.patch('host_inventory._run_checked', return_value=(False, '')), \
+             mock.patch('host_inventory._run', return_value=''), \
+             mock.patch('host_inventory.get_nameservers', return_value={'active': ['1.1.1.1'], 'managed': []}), \
+             mock.patch('host_inventory.get_firewall', return_value={'enabled': False, 'rules': []}), \
+             mock.patch('host_inventory.application_inventory', return_value=[{'key': 'nginx'}]):
+            inventory = host_inventory.collect_host_inventory()
+        self.assertEqual(inventory['nameservers']['active'], ['1.1.1.1'])
+        self.assertEqual(inventory['applications'][0]['key'], 'nginx')
+
 
 if __name__ == "__main__":
     unittest.main()

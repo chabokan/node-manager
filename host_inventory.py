@@ -13,6 +13,8 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from host_admin import application_inventory, get_firewall, get_nameservers
+
 
 INVENTORY_PATH = Path(__file__).resolve().parent / ".host-inventory.json"
 VERSION_COMMANDS = {
@@ -187,6 +189,9 @@ def collect_host_inventory():
         "published_ports": published,
         "containers_available": docker_ok,
         "versions": versions,
+        "nameservers": get_nameservers(),
+        "firewall": get_firewall(),
+        "applications": application_inventory(versions),
         "containers": containers,
         "disks": _host_disks(disks_output),
     }

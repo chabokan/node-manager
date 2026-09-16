@@ -9,10 +9,14 @@ from api.helper import (set_job_run_in_hub, create_service, delete_service, serv
                         create_backup_task, normal_restore, limit_container_task,
                         mysql_restore, deploy_task)
 from core.db import SessionLocal
+from host_admin import execute_host_admin_job
+from host_inventory import write_host_inventory
 
 logger = logging.getLogger(__name__)
 HOST_ONLY_JOBS = frozenset(("host_command", "normal_command", "update_core",
-                            "debug_on", "debug_off", "restart_server", "delete_core"))
+                            "debug_on", "debug_off", "restart_server", "delete_core",
+                            "server_nameservers_set", "server_firewall_set",
+                            "server_application_action"))
 
 
 def failure_reason_for(job_name):
@@ -67,6 +71,15 @@ def execute_job(db, job):
     elif job.name == "delete_core":
         if os.system("cd /var/ch-manager/ && docker compose down") != 0:
             raise RuntimeError("Core deletion failed")
+    elif job.name in ("server_nameservers_set", "server_firewall_set",
+                      "server_application_action"):
+        execute_host_admin_job(job.name, data)
+        try:
+            write_host_inventory()
+        except OSError:
+            # The next host-worker tick refreshes inventory; never repeat a
+            # completed privileged action due to an unrelated probe failure.
+            logger.exception("Could not refresh inventory after job %s", job.key)
     else:
         raise ValueError(f"Unsupported job: {job.name}")
 
