@@ -131,10 +131,42 @@ class HostInventoryTests(unittest.TestCase):
              mock.patch('host_inventory._run', return_value=''), \
              mock.patch('host_inventory.get_nameservers', return_value={'active': ['1.1.1.1'], 'managed': []}), \
              mock.patch('host_inventory.get_firewall', return_value={'enabled': False, 'rules': []}), \
-             mock.patch('host_inventory.application_inventory', return_value=[{'key': 'nginx'}]):
+             mock.patch('host_inventory.application_inventory', return_value=[{'key': 'nginx'}]), \
+             mock.patch('host_inventory.collect_network_inventory', return_value={'available': True}):
             inventory = host_inventory.collect_host_inventory()
         self.assertEqual(inventory['nameservers']['active'], ['1.1.1.1'])
         self.assertEqual(inventory['applications'][0]['key'], 'nginx')
+
+    def test_network_interfaces_and_routes_are_safely_normalized(self):
+        interfaces = host_inventory._network_interfaces(json.dumps([{
+            'ifname': 'eth0', 'operstate': 'UP', 'address': 'aa:bb:cc:dd:ee:ff',
+            'mtu': 1500, 'addr_info': [
+                {'family': 'inet', 'local': '192.0.2.10', 'prefixlen': 24, 'scope': 'global'},
+                {'family': 'packet', 'local': 'ignored'}]}]))
+        routes = host_inventory._network_routes(json.dumps([{
+            'dst': 'default', 'gateway': '192.0.2.1', 'dev': 'eth0',
+            'protocol': 'static', 'metric': 100}]))
+        self.assertEqual(interfaces[0]['state'], 'up')
+        self.assertEqual(interfaces[0]['addresses'][0]['address'], '192.0.2.10')
+        self.assertEqual(routes[0]['gateway'], '192.0.2.1')
+
+    def test_network_inventory_does_not_fail_on_invalid_numeric_fields(self):
+        interfaces = host_inventory._network_interfaces(json.dumps([{
+            'ifname': 'eth0', 'mtu': 'invalid', 'addr_info': [{
+                'family': 'inet', 'local': '192.0.2.10', 'prefixlen': 'invalid'}]}]))
+        routes = host_inventory._network_routes(json.dumps([{'metric': 'invalid'}]))
+        self.assertEqual(interfaces[0]['mtu'], 0)
+        self.assertEqual(interfaces[0]['addresses'][0]['prefix'], 0)
+        self.assertEqual(routes[0]['metric'], 0)
+
+    def test_network_probe_parses_latency_without_shell(self):
+        with mock.patch('host_inventory._run_checked', return_value=(
+                True, '64 bytes from 8.8.8.8: time=12.4 ms')) as run:
+            result = host_inventory._network_probe(('Google DNS', '8.8.8.8'))
+        self.assertTrue(result['reachable'])
+        self.assertEqual(result['latency_ms'], 12.4)
+        run.assert_called_once_with(
+            ['ping', '-n', '-c', '1', '-W', '2', '8.8.8.8'], timeout=3)
 
 
 if __name__ == "__main__":

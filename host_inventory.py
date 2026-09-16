@@ -10,6 +10,7 @@ import platform
 import re
 import subprocess
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,6 +31,20 @@ VERSION_COMMANDS = {
     "MySQL client": ["mysql", "--version"],
     "PostgreSQL client": ["psql", "--version"],
 }
+NETWORK_TARGETS = (
+    ("Google DNS", "8.8.8.8"),
+    ("Cloudflare DNS", "1.1.1.1"),
+    ("Google", "google.com"),
+    ("Chabokan", "chabokan.net"),
+)
+
+
+def _bounded_int(value, minimum=0, maximum=2 ** 31 - 1):
+    try:
+        number = int(value or 0)
+    except (TypeError, ValueError):
+        return minimum
+    return min(max(number, minimum), maximum)
 
 
 def _run_checked(command, timeout=4):
@@ -156,6 +171,66 @@ def _host_disks(output):
     return disks
 
 
+def _network_interfaces(output):
+    try:
+        data = json.loads(output)
+    except (ValueError, TypeError):
+        return []
+    interfaces = []
+    for row in data if isinstance(data, list) else []:
+        name = str(row.get("ifname", ""))[:32]
+        if not name:
+            continue
+        addresses = []
+        for address in row.get("addr_info") or []:
+            family = address.get("family")
+            local = address.get("local")
+            if family not in ("inet", "inet6") or not isinstance(local, str):
+                continue
+            addresses.append({"family": family, "address": local[:45],
+                              "prefix": _bounded_int(address.get("prefixlen"), 0, 128),
+                              "scope": str(address.get("scope", ""))[:16]})
+        interfaces.append({"name": name, "state": str(row.get("operstate", "UNKNOWN"))[:16].lower(),
+                           "mac": str(row.get("address", ""))[:32],
+                           "mtu": _bounded_int(row.get("mtu"), 0, 1048576),
+                           "addresses": addresses[:20]})
+    return interfaces[:50]
+
+
+def _network_routes(output):
+    try:
+        data = json.loads(output)
+    except (ValueError, TypeError):
+        return []
+    routes = []
+    for row in data if isinstance(data, list) else []:
+        routes.append({"destination": str(row.get("dst", "default"))[:64],
+                       "gateway": str(row.get("gateway", ""))[:45],
+                       "interface": str(row.get("dev", ""))[:32],
+                       "protocol": str(row.get("protocol", ""))[:24],
+                       "metric": _bounded_int(row.get("metric"))})
+    return routes[:100]
+
+
+def _network_probe(target):
+    title, address = target
+    success, output = _run_checked(["ping", "-n", "-c", "1", "-W", "2", address], timeout=3)
+    match = re.search(r"time[=<]([0-9.]+)\s*ms", output)
+    return {"name": title, "target": address, "reachable": success,
+            "latency_ms": round(float(match.group(1)), 1) if success and match else None}
+
+
+def collect_network_inventory():
+    interfaces_ok, interfaces_output = _run_checked(["ip", "-j", "address", "show"], timeout=5)
+    routes_ok, routes_output = _run_checked(["ip", "-j", "route", "show"], timeout=5)
+    with ThreadPoolExecutor(max_workers=len(NETWORK_TARGETS)) as pool:
+        probes = list(pool.map(_network_probe, NETWORK_TARGETS))
+    return {"available": interfaces_ok and routes_ok,
+            "interfaces": _network_interfaces(interfaces_output if interfaces_ok else ""),
+            "routes": _network_routes(routes_output if routes_ok else ""),
+            "probes": probes}
+
+
 def collect_host_inventory():
     docker_ok, docker_output = _run_checked(
         ["docker", "ps", "-a", "--format", "{{json .}}"], timeout=8)
@@ -192,6 +267,7 @@ def collect_host_inventory():
         "nameservers": get_nameservers(),
         "firewall": get_firewall(),
         "applications": application_inventory(versions),
+        "network": collect_network_inventory(),
         "containers": containers,
         "disks": _host_disks(disks_output),
     }
