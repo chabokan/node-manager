@@ -22,6 +22,12 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     exit 1
 fi
 
+# The Compose file bind-mounts the host registry auth file read-only, but
+# Docker only creates it on the first `docker login`. Seed an empty one so
+# fresh hosts can create the container.
+install -d -m 0700 /root/.docker
+[[ -f /root/.docker/config.json ]] || printf '{}' > /root/.docker/config.json
+
 target_python=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')
 case "$target_python" in
     3.9|3.10|3.11|3.12|3.13) ;;
