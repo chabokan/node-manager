@@ -1,11 +1,15 @@
+import logging
+
 import boto3
 import docker
 from fastapi import APIRouter, Depends
 import crud
 from api.helper import service_logs
 from core.db import get_db
+from core.logging_setup import log_event
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/{name}/logs/")
@@ -57,8 +61,9 @@ async def backups(name: str, db=Depends(get_db)):
                     "updated": container_backup_object['LastModified'],
                     "created": container_backup_object['LastModified'],
                 })
-    except:
-        pass
+    except Exception as exc:
+        log_event(logger, "service_backups_failed", level=logging.WARNING,
+                  service=name, error=type(exc).__name__)
 
     return {"success": True, "backups": objects}
 

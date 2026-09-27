@@ -108,6 +108,50 @@ def get_server_root_job(session: Session, key: str) -> ServerRootJob:
     return session.query(ServerRootJob).filter(ServerRootJob.key == key).first()
 
 
+def unlock_stale_server_root_jobs(session: Session, cutoff) -> int:
+    jobs = session.query(ServerRootJob).filter(
+        ServerRootJob.completed_at.is_(None),
+        ServerRootJob.status == "pending",
+        ServerRootJob.locked.is_(True),
+        ServerRootJob.locked_at.isnot(None),
+        ServerRootJob.locked_at <= cutoff,
+    ).all()
+    for job in jobs:
+        job.locked = False
+        job.locked_at = None
+    if jobs:
+        session.commit()
+    return len(jobs)
+
+
+def clamp_future_server_root_jobs(session: Session, limit) -> int:
+    jobs = session.query(ServerRootJob).filter(
+        ServerRootJob.completed_at.is_(None),
+        ServerRootJob.status == "pending",
+        ServerRootJob.run_at.isnot(None),
+        ServerRootJob.run_at > limit,
+    ).all()
+    for job in jobs:
+        job.run_at = tehran_now()
+    if jobs:
+        session.commit()
+    return len(jobs)
+
+
+def get_unreported_finished_root_jobs(session: Session, completed_before, limit: int = 50) -> List[ServerRootJob]:
+    return session.query(ServerRootJob).filter(
+        ServerRootJob.completed_at.isnot(None),
+        ServerRootJob.completed_at <= completed_before,
+        ServerRootJob.status.in_(("success", "failed")),
+        ServerRootJob.reported.isnot(True),
+    ).order_by(ServerRootJob.completed_at.asc()).limit(limit).all()
+
+
+def mark_server_root_job_reported(session: Session, key: str) -> None:
+    session.execute(update(ServerRootJob).where(ServerRootJob.key == key).values(reported=True))
+    session.commit()
+
+
 def claim_server_root_job(session: Session, job: ServerRootJob) -> bool:
     result = session.execute(update(ServerRootJob).where(
         ServerRootJob.id == job.id,
@@ -135,6 +179,7 @@ def create_server_root_job(session: Session, request: ServerRootJob) -> ServerRo
         run_at=request.run_at,
         run_count=0,
         locked=False,
+        reported=False,
         status="pending",
         created=tehran_now()
     )

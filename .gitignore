@@ -93,6 +93,8 @@ env.bak/
 venv.bak/
 .update-core-state
 .host-inventory.json
+.auto-heal-state
+logs/
 venv.candidate.*/
 venv.backup.*/
 

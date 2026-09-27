@@ -31,6 +31,7 @@ class ServerRootJob(Base):
     locked = Column(Boolean, default=False)
     locked_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
+    reported = Column(Boolean, default=False)
     created = Column(DateTime)
 
 

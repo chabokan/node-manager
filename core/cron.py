@@ -1,18 +1,25 @@
 import json
 import datetime
+import logging
 import os
+import time
 
 import requests
 from fastapi_restful.tasks import repeat_every
 
 import crud
 from core.clock import tehran_now
+from core.logging_setup import log_event, log_transition
 from api.helper import get_server_ip, get_system_info, cal_all_containers_stats, containers_usages
 from core.db import SessionLocal
 from main import app
 from models import ServerUsage
 from server_queue import run_pending_jobs
 from host_inventory import read_host_inventory
+
+
+logger = logging.getLogger(__name__)
+_hub_sync_state = {}
 
 
 @app.on_event("startup")
@@ -61,12 +68,22 @@ def server_sync() -> None:
             r = requests.post(f"https://{base_hub_url}/fa/api/v1/servers/connect-server/", headers=headers,
                               data=json.dumps(data), timeout=45)
             if r.status_code == 200:
-                pass
+                # Auto-heal compares this against the host's own reachability.
+                with SessionLocal() as sync_db:
+                    crud.update_or_create_setting(sync_db, "hub_last_seen", str(time.time()))
+                log_transition(_hub_sync_state, "sync", True, logger,
+                               "hub_sync_ok", "hub_sync_ok", status=r.status_code)
                 # crud.create_setting(db, Setting(key="backup_server_url", value=r.json()['backup_server_url']))
                 # crud.create_setting(db, Setting(key="backup_server_access_key", value=r.json()['backup_server_access_key']))
                 # crud.create_setting(db, Setting(key="backup_server_secret_key", value=r.json()['backup_server_secret_key']))
-        except:
-            pass
+            else:
+                log_transition(_hub_sync_state, "sync", False, logger,
+                               "hub_sync_ok", "hub_sync_rejected", status=r.status_code)
+        except requests.RequestException as exc:
+            log_transition(_hub_sync_state, "sync", False, logger,
+                           "hub_sync_ok", "hub_sync_failed", error=type(exc).__name__)
+        except Exception as exc:
+            log_event(logger, "hub_sync_error", level=logging.ERROR, error=type(exc).__name__)
 
 
 @app.on_event("startup")
@@ -97,9 +114,12 @@ def get_jobs_from_hub() -> None:
             "Content-Type": "application/json",
         }
         try:
-            r = requests.get("http://127.0.0.1/api/v1/jobs/", headers=headers, timeout=45)
-        except:
-            pass
+            requests.get("http://127.0.0.1/api/v1/jobs/", headers=headers, timeout=45)
+            log_transition(_hub_sync_state, "local_api", True, logger,
+                           "local_api_ok", "local_api_ok")
+        except requests.RequestException as exc:
+            log_transition(_hub_sync_state, "local_api", False, logger,
+                           "local_api_ok", "local_api_unreachable", error=type(exc).__name__)
 
 
 @app.on_event("startup")
@@ -107,7 +127,11 @@ def get_jobs_from_hub() -> None:
 def run_server_jobs() -> None:
     with SessionLocal() as db:
         if crud.get_setting(db, "token"):
-            run_pending_jobs(db, host_mode=False)
+            try:
+                run_pending_jobs(db, host_mode=False)
+            except Exception as exc:
+                log_event(logger, "job_worker_failed", level=logging.ERROR,
+                          worker="web", error=type(exc).__name__)
 
 
 @app.on_event("startup")
@@ -117,7 +141,11 @@ def monitor_services_usage() -> None:
         enabled = bool(crud.get_setting(db, "token"))
     if enabled:
         with SessionLocal() as db:
-            cal_all_containers_stats(db)
+            try:
+                cal_all_containers_stats(db)
+            except Exception as exc:
+                log_event(logger, "service_usage_failed", level=logging.ERROR,
+                          error=type(exc).__name__)
 
 
 @app.on_event("startup")
@@ -125,12 +153,8 @@ def monitor_services_usage() -> None:
 def reset_locked_root_jobs() -> None:
     with SessionLocal() as db:
         if crud.get_setting(db, "token"):
-            jobs = crud.get_server_locked_root_jobs(db)
-            for job in jobs:
-                if job.locked_at and job.locked_at <= tehran_now() - datetime.timedelta(seconds=(60 * 30)):
-                    job.locked = False
-                    job.locked_at = None
-                    db.commit()
+            crud.unlock_stale_server_root_jobs(
+                db, tehran_now() - datetime.timedelta(seconds=(60 * 30)))
 
 
 @app.on_event("startup")

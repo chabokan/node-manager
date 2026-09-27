@@ -5,6 +5,7 @@ import os
 
 import crud
 from core.clock import tehran_now, tehran_naive
+from core.logging_setup import log_event
 from api.helper import (set_job_run_in_hub, create_service, delete_service, service_action,
                         create_backup_task, normal_restore, limit_container_task,
                         mysql_restore, deploy_task)
@@ -93,24 +94,30 @@ def run_pending_jobs(db, host_mode=True):
         if job.run_at and tehran_naive(job.run_at) > tehran_now():
             continue
         if job.name == "create_backup" and len(crud.get_server_backup_locked(db)) >= 2:
+            log_event(logger, "job_deferred", name=job.name, key=job.key,
+                      reason="backup_slots_full")
             continue
         if not crud.claim_server_root_job(db, job):
             continue
+        log_event(logger, "job_claimed", name=job.name, key=job.key,
+                  run_count=job.run_count or 0)
         if job.name == "restart_server":
             # Reboot terminates the host worker, so acknowledge it first.
             try:
                 crud.set_server_root_job_run(db, job.id)
                 try:
                     set_job_run_in_hub(db, job.key)
-                except Exception:
-                    logger.exception("Could not report shutdown job %s", job.key)
+                except Exception as exc:
+                    log_event(logger, "job_report_failed", key=job.key, status="success",
+                              error=type(exc).__name__)
                 execute_job(db, job)
-            except Exception:
-                logger.exception("Shutdown job %s failed after acknowledgement", job.key)
+            except Exception as exc:
+                log_event(logger, "job_failed_after_ack", level=logging.ERROR,
+                          key=job.key, error=type(exc).__name__)
             continue
         try:
             execute_job(db, job)
-        except Exception:
+        except Exception as exc:
             logger.exception("Job %s failed", job.key)
             db.rollback()
             job = crud.get_server_root_job(db, job.key)
@@ -120,21 +127,29 @@ def run_pending_jobs(db, host_mode=True):
                 job.locked = False
                 job.locked_at = None
                 db.commit()
+                log_event(logger, "job_retry_scheduled", name=job.name, key=job.key,
+                          attempt=job.run_count, error=type(exc).__name__)
             else:
                 crud.fail_server_root_job(db, job)
+                log_event(logger, "job_failed", name=job.name, key=job.key,
+                          error=type(exc).__name__,
+                          reason=failure_reason_for(job.name))
                 try:
                     set_job_run_in_hub(db, job.key, "failed",
                                        failure_reason=failure_reason_for(job.name))
-                except Exception:
-                    logger.exception("Could not report failed job %s", job.key)
+                except Exception as report_exc:
+                    log_event(logger, "job_report_failed", key=job.key, status="failed",
+                              error=type(report_exc).__name__)
             continue
 
         # Persist first so an unavailable Hub cannot cause the action to repeat.
         crud.set_server_root_job_run(db, job.id)
         try:
             set_job_run_in_hub(db, job.key)
-        except Exception:
-            logger.exception("Could not report completed job %s", job.key)
+            log_event(logger, "job_completed", name=job.name, key=job.key)
+        except Exception as exc:
+            log_event(logger, "job_report_failed", key=job.key, status="success",
+                      error=type(exc).__name__)
 
 
 if __name__ == "__main__":

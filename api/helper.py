@@ -99,6 +99,7 @@ def set_job_run_in_hub(db, key, status="success", failure_reason=None):
     response = r.json()
     if response.get("success") is not True or response.get("status") != status:
         raise ValueError(f"Hub did not accept job {key}")
+    crud.mark_server_root_job_reported(db, key)
 
 
 def get_home_path(data):

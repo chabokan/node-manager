@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Optional
 from urllib.parse import urlsplit
 
@@ -9,10 +10,12 @@ import requests
 import crud
 from api.helper import get_system_info, get_server_ip, process_jobs
 from core.db import get_db
+from core.logging_setup import log_event, log_transition
 from models import Setting
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+_hub_jobs_state = {}
 
 
 def normalize_hub_host(value: str) -> str:
@@ -40,19 +43,25 @@ async def connect(token: Optional[str] = None, hub_url: Optional[str] = None,
     if not isinstance(hub_url, str):
         raise HTTPException(status_code=422, detail="Invalid hub URL")
     base_hub_url = normalize_hub_host(hub_url)
+    log_event(logger, "connect_requested", hub=base_hub_url)
     stored_token = crud.get_setting(db, key="token")
     connection_keys = ("technical_name", "backup_server_url", "backup_server_bucket",
                        "backup_server_access_key", "backup_server_secret_key", "base_hub_url")
     if stored_token and all(crud.get_setting(db, key) for key in connection_keys):
         stored_hub = crud.get_setting(db, "base_hub_url")
         if stored_token.value == token and stored_hub.value == base_hub_url:
+            log_event(logger, "connect_repeated", hub=base_hub_url)
             return {"success": True, "message": "node already connected to chabokan."}
+        log_event(logger, "connect_rejected", reason="different_credentials", hub=base_hub_url)
         return {"success": False, "message": "node is already connected with another token or hub"}
     if stored_token and stored_token.value != token:
+        log_event(logger, "connect_rejected", reason="incomplete_other_token", hub=base_hub_url)
         return {"success": False, "message": "incomplete connection uses another token"}
 
     server_info = get_system_info()
     if server_info.get('disk_available') is False:
+        log_event(logger, "connect_rejected", reason="disk_inventory_not_ready",
+                  level=logging.WARNING, hub=base_hub_url)
         raise HTTPException(status_code=503, detail="Host disk inventory is not ready")
     ip = get_server_ip()
     data = {
@@ -77,6 +86,8 @@ async def connect(token: Optional[str] = None, hub_url: Optional[str] = None,
                     "backup_server_access_key", "backup_server_secret_key")
         if r.status_code != 200 or response.get("success") is not True or any(
                 key not in response or response[key] is None for key in required):
+            log_event(logger, "connect_rejected", reason="hub_response_incomplete",
+                      level=logging.WARNING, status=r.status_code, hub=base_hub_url)
             return {"success": False, "status": r.status_code, "response": response}
 
         values = {"token": token, "base_hub_url": base_hub_url}
@@ -88,13 +99,16 @@ async def connect(token: Optional[str] = None, hub_url: Optional[str] = None,
             else:
                 db.add(Setting(key=key, value=value))
         db.commit()
+        log_event(logger, "connect_succeeded", hub=base_hub_url)
         return {"success": True, "message": "node connected to chabokan successfully."}
     except (requests.RequestException, ValueError) as exc:
-        logger.warning("Could not connect to hub: %s", exc)
+        log_event(logger, "connect_failed", level=logging.WARNING,
+                  error=type(exc).__name__, hub=base_hub_url)
         return {"success": False, "status": 543, "response": {}}
-    except Exception:
+    except Exception as exc:
         db.rollback()
-        logger.exception("Could not save hub connection")
+        log_event(logger, "connect_failed", level=logging.ERROR,
+                  error=type(exc).__name__, hub=base_hub_url)
         return {"success": False, "status": 543, "response": {}}
 
 
@@ -123,8 +137,13 @@ async def jobs(db=Depends(get_db)):
         response = r.json()
         if response.get("success") is not True:
             raise ValueError("Hub rejected job request")
-        process_jobs(db, response['data'])
+        crud.update_or_create_setting(db, "hub_last_seen", str(time.time()))
+        jobs = response.get('data') or []
+        process_jobs(db, jobs)
+        log_transition(_hub_jobs_state, "jobs", True, logger,
+                       "hub_jobs_ok", "hub_jobs_ok", count=len(jobs))
         return {"success": True}
     except (requests.RequestException, ValueError, KeyError) as exc:
-        logger.warning("Could not fetch jobs from hub: %s", exc)
+        log_transition(_hub_jobs_state, "jobs", False, logger,
+                       "hub_jobs_ok", "hub_jobs_failed", error=type(exc).__name__)
         return {"success": False}
